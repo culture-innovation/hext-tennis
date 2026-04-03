@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HEXT Tennis</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--court:#2D6A4F;--court-bg:#F0FAF4;--court-mid:#D8F3E8;--red:#E53E3E;--red-bg:#FFF5F5;--amber:#D97706;--amber-bg:#FFFBEB;--bg:#F8F9FA;--white:#FFFFFF;--border:#EAECEF;--border2:#D1D5DB;--text:#191F28;--text2:#6B7684;--text3:#B0B8C1;--r:12px;--rl:16px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+.screen{display:none;min-height:100vh;}.screen.active{display:block;}
+/* PIN */
+.pin-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:var(--white);padding:40px 20px;}
+.pin-screen.active{display:flex;}
+.pin-logo{font-size:22px;font-weight:700;margin-bottom:6px;}.pin-logo span{color:var(--court);}
+.pin-sub{font-size:14px;color:var(--text2);margin-bottom:40px;}
+.pin-sel-wrap{width:100%;max-width:300px;margin-bottom:28px;}
+.pin-sel-wrap select{width:100%;background:var(--bg);border:1.5px solid var(--border2);border-radius:12px;padding:14px 16px;color:var(--text);font-size:16px;font-family:'Noto Sans KR',sans-serif;font-weight:600;outline:none;appearance:none;text-align:center;}
+.pin-dots{display:flex;gap:16px;margin-bottom:36px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);background:var(--white);transition:all .15s;}
+.pin-dot.filled{background:var(--court);border-color:var(--court);}
+.pin-dot.error{background:var(--red);border-color:var(--red);animation:shake .3s;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:280px;}
+.pin-key{aspect-ratio:1;border-radius:50%;border:none;background:var(--bg);font-size:22px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s;font-family:'Noto Sans KR',sans-serif;}
+.pin-key:active{background:var(--court-mid);transform:scale(.93);}
+.pin-key.del{font-size:16px;color:var(--text2);}
+.pin-key.empty{background:none;cursor:default;}
+.pin-err{font-size:13px;color:var(--red);margin-top:16px;height:18px;}
+/* APP */
+.app-header{background:var(--white);padding:16px 20px 14px;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.logo{font-size:17px;font-weight:700;letter-spacing:-.3px;}.logo span{color:var(--court);}
+.user-badge{font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--court-bg);color:var(--court);}
+.user-badge.admin{background:#FEF2F2;color:var(--red);}
+.logout-btn{font-size:12px;color:var(--text2);background:none;border:none;cursor:pointer;padding:4px 8px;}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom);}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 8px;background:none;border:none;color:var(--text3);font-size:10px;font-family:'Noto Sans KR',sans-serif;font-weight:500;cursor:pointer;gap:3px;}
+.nav-btn svg{width:22px;height:22px;}.nav-btn.active{color:var(--court);}
+.page{display:none;padding-bottom:88px;}.page.active{display:block;}
+/* COMMON */
+.card{background:var(--white);border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;margin-bottom:10px;}
+.card-header{padding:14px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:13px;font-weight:600;color:var(--text2);}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:10px 16px;border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .12s;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--court);color:#fff;}
+.btn-secondary{background:var(--court-bg);color:var(--court);}
+.btn-ghost{background:var(--bg);color:var(--text2);border:1px solid var(--border2);}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid #fca5a5;}
+.btn-sm{padding:7px 12px;font-size:12px;border-radius:8px;}.btn-block{width:100%;}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;}
+.badge-A{background:#FEF2F2;color:#DC2626;}.badge-B{background:#EFF6FF;color:#2563EB;}
+.badge-C{background:var(--court-bg);color:var(--court);}.badge-D{background:#F5F3FF;color:#7C3AED;}
+.badge-M{background:#EFF6FF;color:#1D4ED8;}.badge-F{background:#FDF2F8;color:#9D174D;}
+.badge-win{background:var(--court-bg);color:var(--court);}
+.badge-lose{background:var(--red-bg);color:var(--red);}
+.badge-draw{background:var(--amber-bg);color:var(--amber);}
+.tab-bar{display:flex;background:var(--white);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:57px;z-index:90;}
+.tab-item{padding:13px 16px;font-size:14px;font-weight:500;color:var(--text2);background:none;border:none;font-family:'Noto Sans KR',sans-serif;cursor:pointer;border-bottom:2.5px solid transparent;transition:all .15s;}
+.tab-item.active{color:var(--court);border-bottom-color:var(--court);font-weight:700;}
+.form-group{margin-bottom:16px;}
+.form-label{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;display:block;}
+.form-input,.form-select{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;color:var(--text);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border-color .15s;appearance:none;}
+.form-input:focus,.form-select:focus{border-color:var(--court);background:#fff;}
+.tg{display:flex;gap:8px;flex-wrap:wrap;}
+.tb{flex:1;min-width:60px;padding:9px 6px;border-radius:10px;border:1.5px solid var(--border);background:var(--white);color:var(--text2);font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s;}
+.tb.sel{border-color:var(--court);background:var(--court-bg);color:var(--court);font-weight:600;}
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:flex-end;}
+.mo.open{display:flex;}
+.modal{background:var(--white);border-radius:20px 20px 0 0;padding:0 0 20px;width:100%;max-height:92vh;overflow-y:auto;animation:su .22s cubic-bezier(.32,.72,0,1);}
+@keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mhw{padding:12px 20px 0;}.mh{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto;}
+.mhead{padding:14px 20px 16px;}.mtitle{font-size:18px;font-weight:700;letter-spacing:-.4px;}
+.msub{font-size:13px;color:var(--text2);margin-top:3px;}
+.mbody{padding:0 20px;}.mfoot{padding:16px 20px 0;display:flex;gap:10px;}
+.li{display:flex;align-items:center;padding:14px 18px;gap:12px;background:var(--white);border-bottom:1px solid var(--border);}
+.li:last-child{border-bottom:none;}
+.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;}
+.av-M{background:#EFF6FF;color:#2563EB;}.av-F{background:#FDF2F8;color:#9D174D;}
+.empty{text-align:center;padding:40px 20px;}
+.empty-icon{font-size:40px;margin-bottom:12px;}
+.empty-text{font-size:15px;color:var(--text2);}
+.stat-row{display:flex;gap:10px;}
+.stat-box{flex:1;background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:14px 12px;text-align:center;}
+.sv{font-size:26px;font-weight:700;color:var(--text);letter-spacing:-.5px;}
+.sv.g{color:var(--court);}.sv.r{color:var(--red);}
+.sl{font-size:12px;color:var(--text2);margin-top:3px;font-weight:500;}
+.pb{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:6px;}
+.pbf{height:100%;background:var(--court);border-radius:2px;}
+.fb{display:flex;align-items:center;justify-content:space-between;}
+.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:#1F2937;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:999;opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;}
+.toast.show{opacity:1;}
+.ldo{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;z-index:500;}
+.sp2{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--court);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ATTENDANCE */
+.att-section{background:var(--white);border-bottom:1px solid var(--border);}
+.att-header{padding:12px 18px 0;display:flex;align-items:center;justify-content:space-between;}
+.att-grid{display:flex;flex-wrap:wrap;gap:8px;padding:10px 18px 14px;}
+.att-chip{display:flex;align-items:center;gap:5px;padding:6px 11px;border-radius:20px;border:2px solid var(--border);background:var(--white);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;user-select:none;position:relative;}
+.slot-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.chip-menu{position:absolute;top:110%;left:0;z-index:50;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:6px;min-width:170px;box-shadow:0 4px 16px rgba(0,0,0,.12);}
+.cm-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;}
+.cm-item:active{background:var(--bg);}
+.cm-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+/* ROUNDS */
+.rounds-wrap{padding:0 20px;}
+.round-section{margin-bottom:12px;}
+.round-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--white);border-radius:10px 10px 0 0;border:1px solid var(--border);border-bottom:none;}
+.round-label{font-size:13px;font-weight:700;color:var(--court);}
+.round-time-btn{font-size:11px;color:var(--text2);background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+.round-body{background:var(--white);border:1px solid var(--border);border-radius:0 0 10px 10px;padding:10px 12px;}
+/* MATCH CARD */
+.match-card{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;transition:border-color .15s;}
+.match-card:last-child{margin-bottom:0;}
+.match-card.drag-target{border:2px dashed var(--court);background:var(--court-bg);}
+.court-lbl{font-size:10px;font-weight:700;color:var(--court);letter-spacing:.5px;margin-bottom:8px;}
+.teams-row{display:flex;align-items:stretch;gap:8px;}
+.team-col{flex:1;background:var(--white);border-radius:8px;padding:8px 10px;border:1px solid var(--border);}
+.team-lbl{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.5px;margin-bottom:5px;}
+/* PLAYER CARD - draggable */
+.pc{display:flex;align-items:center;gap:6px;padding:7px 9px;background:var(--white);border:1.5px solid var(--border);border-radius:8px;margin-bottom:4px;cursor:grab;user-select:none;touch-action:none;transition:opacity .15s,border-color .15s;}
+.pc:last-child{margin-bottom:0;}
+.pc.is-dragging{opacity:.35;border-style:dashed;cursor:grabbing;}
+.pc.drag-over-p{border-color:var(--court);background:var(--court-bg);}
+.pc .pdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.pc .pname{font-size:13px;font-weight:600;flex:1;}
+.pc .grip{font-size:13px;color:var(--text3);}
+.empty-slot{min-height:36px;border:1.5px dashed var(--border2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3);}
+.empty-slot.drag-over-p{border-color:var(--court);background:var(--court-bg);}
+/* SCORE */
+.score-inline{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.score-quick{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.sq-btn{padding:5px 9px;border-radius:7px;border:1.5px solid var(--border2);background:var(--white);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;flex-shrink:0;}
+.sq-btn:active{background:var(--court-bg);border-color:var(--court);color:var(--court);}
+.score-in{flex:1;min-width:50px;background:var(--bg);border:1.5px solid var(--border2);border-radius:8px;padding:8px 4px;color:var(--text);font-size:20px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;}
+.score-in:focus{border-color:var(--court);background:#fff;}
+.score-sep{font-size:16px;font-weight:700;color:var(--text3);flex-shrink:0;}
+.score-save{padding:8px 14px;border-radius:8px;background:var(--court);color:#fff;border:none;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;}
+.score-result{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.score-box{flex:1;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;}
+.snum{font-size:20px;font-weight:700;}
+.ssep2{font-size:14px;font-weight:600;color:var(--text3);}
+/* RANKING */
+.ri{display:flex;align-items:center;padding:13px 18px;gap:12px;border-bottom:1px solid var(--border);}
+.ri:last-child{border-bottom:none;}
+.rn{font-size:15px;font-weight:700;width:24px;text-align:center;color:var(--text3);flex-shrink:0;}
+.rn.r1{color:#F59E0B;}.rn.r2{color:#9CA3AF;}.rn.r3{color:#B45309;}
+.rinfo{flex:1;}
+.rnm{font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px;}
+.rst{font-size:12px;color:var(--text2);margin-top:2px;}
+.rr{font-size:15px;font-weight:700;color:var(--court);}
+/* MYPAGE */
+.my-hero{background:var(--court);color:white;padding:28px 20px 24px;}
+.my-name{font-size:22px;font-weight:700;letter-spacing:-.4px;}
+.my-meta{font-size:13px;opacity:.8;margin-top:4px;}
+.my-sr{display:flex;gap:2px;margin-top:20px;}
+.my-sb{flex:1;background:rgba(255,255,255,.15);border-radius:10px;padding:12px 10px;text-align:center;}
+.my-sv{font-size:24px;font-weight:700;}.my-sl{font-size:11px;opacity:.8;margin-top:2px;}
+.period-wrap{display:flex;gap:8px;padding:14px 20px;}
+.pb2{padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;border:1.5px solid var(--border);background:var(--white);color:var(--text2);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;}
+.pb2.active{border-color:var(--court);background:var(--court-bg);color:var(--court);}
+.pair-item{display:flex;align-items:center;padding:13px 18px;gap:12px;border-bottom:1px solid var(--border);}
+.pair-item:last-child{border-bottom:none;}
+.pr{font-size:20px;flex-shrink:0;width:28px;text-align:center;}
+.pi{flex:1;}.pn{font-size:14px;font-weight:600;}.ps{font-size:12px;color:var(--text2);margin-top:2px;}
+.prate{font-size:16px;font-weight:700;}.prate.good{color:var(--court);}.prate.bad{color:var(--red);}
+.cs-wrap{display:flex;flex-wrap:wrap;gap:8px;}
+.cs{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .15s;}
+.cs.sel{border-color:var(--text);transform:scale(1.1);}
+.court-check-list{display:flex;flex-direction:column;gap:8px;}
+.cc-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--white);cursor:pointer;}
+.cc-item.sel{border-color:var(--court);background:var(--court-bg);}
+/* round time grid */
+.rt-grid{display:flex;flex-direction:column;gap:8px;}
+.rt-row{display:flex;align-items:center;gap:10px;}
+.rt-lbl{font-size:13px;font-weight:600;color:var(--court);width:32px;flex-shrink:0;}
+.rt-input{flex:1;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;}
+.rt-input:focus{border-color:var(--court);background:#fff;}
+</style>
+</head>
+<body>
+<div class="ldo" id="ldo"><div class="sp2"></div></div>
+
+<!-- PIN -->
+<div class="pin-screen" id="pinScreen">
+  <div class="pin-logo">HEXT <span>Tennis</span></div>
+  <div class="pin-sub">PIN으로 로그인하세요</div>
+  <div class="pin-sel-wrap">
+    <select id="pinSel" onchange="onSelChange()"><option value="">회원을 선택하세요</option></select>
+  </div>
+  <div class="pin-dots" id="pinDots">
+    <div class="pin-dot"></div><div class="pin-dot"></div>
+    <div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-key" onclick="pi('1')">1</button><button class="pin-key" onclick="pi('2')">2</button><button class="pin-key" onclick="pi('3')">3</button>
+    <button class="pin-key" onclick="pi('4')">4</button><button class="pin-key" onclick="pi('5')">5</button><button class="pin-key" onclick="pi('6')">6</button>
+    <button class="pin-key" onclick="pi('7')">7</button><button class="pin-key" onclick="pi('8')">8</button><button class="pin-key" onclick="pi('9')">9</button>
+    <div class="pin-key empty"></div><button class="pin-key" onclick="pi('0')">0</button><button class="pin-key del" onclick="pd()">⌫</button>
+  </div>
+  <div class="pin-err" id="pinErr"></div>
+</div>
+
+<!-- APP -->
+<div class="screen" id="appScreen">
+  <div class="app-header">
+    <div class="logo">HEXT <span>Tennis</span></div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="user-badge" id="userBadge"></div>
+      <button class="logout-btn" onclick="logout()">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="bottom-nav" id="adminNav" style="display:none;">
+    <button class="nav-btn active" onclick="sp('schedule')" id="nav-schedule">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>대진
+    </button>
+    <button class="nav-btn" onclick="sp('mgmt')" id="nav-mgmt">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>회원
+    </button>
+    <button class="nav-btn" onclick="sp('records')" id="nav-records">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>경기기록
+    </button>
+    <button class="nav-btn" onclick="sp('ranking')" id="nav-ranking">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 21H2V9h5.5v12zm7.25-18h-5.5v18h5.5V3zM22 11h-5.5v10H22V11z"/></svg>랭킹
+    </button>
+    <button class="nav-btn" onclick="sp('settings')" id="nav-settings">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>설정
+    </button>
+  </div>
+
+  <div class="bottom-nav" id="memberNav" style="display:none;">
+    <button class="nav-btn active" onclick="sp('home')" id="nav-home">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>홈
+    </button>
+    <button class="nav-btn" onclick="sp('ranking')" id="nav-ranking-m">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 21H2V9h5.5v12zm7.25-18h-5.5v18h5.5V3zM22 11h-5.5v10H22V11z"/></svg>랭킹
+    </button>
+    <button class="nav-btn" onclick="sp('mypage')" id="nav-mypage">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>마이페이지
+    </button>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="page active" id="page-schedule">
+    <div style="background:var(--white);border-bottom:1px solid var(--border);">
+      <div style="padding:16px 20px 12px;" class="fb">
+        <div>
+          <div style="font-size:18px;font-weight:700;letter-spacing:-.3px;">대진 관리</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:2px;" id="schedSub">세션을 선택하거나 생성하세요</div>
+        </div>
+        <div style="display:flex;gap:6px;" id="adminSchedBtns" style="display:none;">
+          <button class="btn btn-ghost btn-sm" onclick="copySess()">복사</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewSess()">+ 새 세션</button>
+        </div>
+      </div>
+      <div style="padding:0 20px 12px;">
+        <select class="form-select" id="sessSelect" onchange="loadSess()" style="font-weight:600;"><option value="">세션 선택...</option></select>
+      </div>
+    </div>
+    <div id="schedNone"><div class="empty"><div class="empty-icon">🎾</div><div class="empty-text">세션을 선택하거나 새로 만드세요</div></div></div>
+    <div id="schedBody" style="display:none;">
+      <div class="att-section">
+        <div class="att-header">
+          <span style="font-size:13px;font-weight:700;">출석 인원 <span id="attCount" style="color:var(--court);"></span></span>
+          <div style="display:flex;gap:6px;" id="genBtnWrap">
+            <button class="btn btn-ghost btn-sm" id="saveSchedBtn" style="display:none;" onclick="saveAllScores()">💾 전체 저장</button>
+            <button class="btn btn-secondary btn-sm" id="genBtn" style="display:none;" onclick="genSched()">🎲 자동 대진</button>
+          </div>
+        </div>
+        <!-- 정회원 -->
+        <div id="attRegularSection">
+          <div style="padding:8px 18px 0;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;">정회원</span>
+            <span style="font-size:11px;color:var(--text2);" id="attRegularCount"></span>
+          </div>
+          <div class="att-grid" id="attGridRegular"></div>
+        </div>
+        <!-- 구분선 -->
+        <div id="attGuestSection">
+          <div style="padding:4px 18px 0;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);">
+            <span style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;">게스트</span>
+            <span style="font-size:11px;color:var(--text2);" id="attGuestCount"></span>
+          </div>
+          <div class="att-grid" id="attGridGuest"></div>
+        </div>
+      </div>
+      <div style="height:8px;background:var(--bg);"></div>
+      <div class="rounds-wrap" id="roundsWrap"></div>
+    </div>
+  </div>
+
+  <!-- MEMBERS -->
+  <div class="page" id="page-mgmt">
+    <div class="tab-bar">
+      <button class="tab-item active" onclick="switchMTab('regular',this)">정회원</button>
+      <button class="tab-item" onclick="switchMTab('guest',this)">게스트</button>
+    </div>
+    <div id="mtRegular">
+      <div style="padding:14px 20px 10px;" class="fb">
+        <span style="font-size:13px;font-weight:600;color:var(--text2);">총 <span id="regCnt">0</span>명</span>
+        <button class="btn btn-secondary btn-sm" onclick="openAddM('regular')">+ 추가</button>
+      </div>
+      <div class="card" style="margin:0 20px;"><div id="regList"></div></div>
+    </div>
+    <div id="mtGuest" style="display:none;">
+      <div style="padding:14px 20px 10px;" class="fb">
+        <span style="font-size:13px;font-weight:600;color:var(--text2);">총 <span id="gstCnt">0</span>명</span>
+        <button class="btn btn-secondary btn-sm" onclick="openAddM('guest')">+ 추가</button>
+      </div>
+      <div class="card" style="margin:0 20px;"><div id="gstList"></div></div>
+    </div>
+  </div>
+
+  <!-- HOME (member) -->
+  <div class="page" id="page-home">
+    <div style="padding:18px 20px 14px;background:var(--white);border-bottom:1px solid var(--border);">
+      <div style="font-size:18px;font-weight:700;">최근 대진 결과</div>
+    </div>
+    <div id="homeList" style="padding:10px 20px;"></div>
+  </div>
+
+  <!-- RANKING -->
+  <div class="page" id="page-ranking">
+    <div style="padding:16px 20px 10px;">
+      <div style="font-size:18px;font-weight:700;margin-bottom:12px;">랭킹</div>
+      <div class="period-wrap" style="padding:0;margin-bottom:12px;">
+        <button class="pb2 active" onclick="switchRP('quarter',this)">분기</button>
+        <button class="pb2" onclick="switchRP('half',this)">반기</button>
+        <button class="pb2" onclick="switchRP('year',this)">연간</button>
+        <button class="pb2" onclick="switchRP('all',this)">전체</button>
+      </div>
+      <div class="stat-row" id="rankSum" style="margin-bottom:10px;"></div>
+    </div>
+    <div class="card" style="margin:0 20px 10px;">
+      <div class="card-header"><div class="card-title" id="rankLabel">분기 랭킹</div></div>
+      <div id="rankList"></div>
+    </div>
+  </div>
+
+  <!-- MYPAGE -->
+  <div class="page" id="page-mypage">
+    <div class="my-hero" id="myHero"></div>
+    <div class="period-wrap">
+      <button class="pb2 active" onclick="switchMP('quarter',this)">분기</button>
+      <button class="pb2" onclick="switchMP('half',this)">반기</button>
+      <button class="pb2" onclick="switchMP('year',this)">연간</button>
+      <button class="pb2" onclick="switchMP('all',this)">전체</button>
+    </div>
+    <div id="myContent"></div>
+  </div>
+
+  <!-- RECORDS PAGE -->
+  <div class="page" id="page-records">
+    <div style="padding:18px 20px 14px;background:var(--white);border-bottom:1px solid var(--border);">
+      <div style="font-size:18px;font-weight:700;letter-spacing:-.3px;">경기 기록</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:2px;" id="recordsCount"></div>
+    </div>
+    <div id="recordsList" style="padding:0 20px 10px;margin-top:10px;"></div>
+  </div>
+
+  <!-- SESSION DETAIL MODAL (경기기록 세부) -->
+  <div class="mo" id="moSessDetail">
+    <div class="modal" style="max-height:95vh;">
+      <div class="mhw"><div class="mh"></div></div>
+      <div class="mhead" style="padding-bottom:10px;">
+        <div class="mtitle" id="sessDetailTitle"></div>
+        <div class="msub" id="sessDetailSub"></div>
+      </div>
+      <div id="sessDetailContent" style="max-height:65vh;overflow-y:auto;padding:0 20px;"></div>
+      <div class="mfoot" style="gap:8px;">
+        <button class="btn btn-ghost btn-block" onclick="cm('moSessDetail')">닫기</button>
+        <button class="btn btn-danger btn-sm" id="sessDetailDeleteBtn" onclick="deleteSessFromDetail()" style="flex-shrink:0;">삭제</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <div style="padding:18px 20px 14px;font-size:18px;font-weight:700;">설정</div>
+    <div class="card" style="margin:0 20px 10px;">
+      <div class="card-header"><div class="card-title">저장된 셋업 <span id="setupCount" style="color:var(--text3);"></span></div></div>
+      <div id="setupList"></div>
+    </div>
+    <div class="card" style="margin:0 20px 10px;">
+      <div class="card-header"><div class="card-title">참석 시간대</div><button class="btn btn-secondary btn-sm" onclick="openAddSlot()">+ 추가</button></div>
+      <div id="slotList"></div>
+    </div>
+    <div class="card" style="margin:0 20px 10px;">
+      <div class="card-header"><div class="card-title">코트 관리</div><button class="btn btn-secondary btn-sm" onclick="openAddCourt()">+ 추가</button></div>
+      <div id="courtList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODALS -->
+<div class="mo" id="moNewSess">
+  <div class="modal"><div class="mhw"><div class="mh"></div></div>
+    <div class="mhead"><div class="mtitle">새 대진 세션</div></div>
+    <div class="mbody">
+      <div class="form-group"><label class="form-label">날짜</label><input type="date" class="form-input" id="sessDate"></div>
+      <div class="form-group">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <label class="form-label" style="margin:0;">셋업 불러오기</label>
+          <button class="btn btn-ghost btn-sm" onclick="openSaveSetup()">💾 현재 셋업 저장</button>
+        </div>
+        <select class="form-select" id="setupSelect" onchange="loadSetup()">
+          <option value="">직접 입력</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">라운드 수</label>
+        <select class="form-select" id="nsRoundsSelect" onchange="onRoundsChange()">
+          <option value="3">3라운드</option>
+          <option value="4">4라운드</option>
+          <option value="5" selected>5라운드</option>
+          <option value="6">6라운드</option>
+          <option value="7">7라운드</option>
+          <option value="8">8라운드</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">라운드별 시간</label><div class="rt-grid" id="rtGrid"></div></div>
+      <div class="form-group">
+        <label class="form-label">사용 코트 (쉼표로 구분)</label>
+        <input type="text" class="form-input" id="courtNamesInput" placeholder="예: TS 3코트, TS 4코트">
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn btn-ghost btn-block" onclick="cm('moNewSess')">취소</button><button class="btn btn-primary btn-block" onclick="createSess()">만들기</button></div>
+  </div>
+</div>
+
+<div class="mo" id="moSaveSetup">
+  <div class="modal"><div class="mhw"><div class="mh"></div></div>
+    <div class="mhead"><div class="mtitle">셋업 저장</div><div class="msub">현재 설정을 이름으로 저장합니다 (최대 5개)</div></div>
+    <div class="mbody">
+      <div class="form-group"><label class="form-label">셋업 이름</label><input type="text" class="form-input" id="setupName" placeholder="예: 토요일 정기 테니스"></div>
+    </div>
+    <div class="mfoot"><button class="btn btn-ghost btn-block" onclick="cm('moSaveSetup')">취소</button><button class="btn btn-primary btn-block" onclick="confirmSaveSetup()">저장</button></div>
+  </div>
+</div>
+
+<div class="mo" id="moRoundTime">
+  <div class="modal"><div class="mhw"><div class="mh"></div></div>
+    <div class="mhead"><div class="mtitle" id="rtModalTitle">R1 시간 수정</div></div>
+    <div class="mbody">
+      <div class="form-group"><label class="form-label">시작 시간</label><input type="time" class="form-input" id="rtStart"></div>
+      <div class="form-group"><label class="form-label">종료 시간</label><input type="time" class="form-input" id="rtEnd"></div>
+    </div>
+    <div class="mfoot"><button class="btn btn-ghost btn-block" onclick="cm('moRoundTime')">취소</button><button class="btn btn-primary btn-block" onclick="saveRoundTime()">저장</button></div>
+  </div>
+</div>
+
+<div class="mo" id="moAddM">
+  <div class="modal"><div class="mhw"><div class="mh"></div></div>
+    <div class="mhead"><div class="mtitle" id="addMTitle">회원 추가</div></div>
+    <div class="mbody">
+      <div class="form-group"><label class="form-label">이름</label><input type="text" class="form-input" id="mName" placeholder="이름 입력"></div>
+      <div class="form-group"><label class="form-label">성별</label>
+        <div class="tg"><div class="tb sel" id="gM" onclick="selG('M')">남성</div><div class="tb" id="gF" onclick="selG('F')">여성</div></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">NTRP 레벨</label>
+        <div class="tg" style="flex-wrap:wrap;">
+          <div class="tb" id="ntrp15" onclick="selL('1.5')">1.5</div>
+          <div class="tb" id="ntrp20" onclick="selL('2.0')">2.0</div>
+          <div class="tb" id="ntrp25" onclick="selL('2.5')">2.5</div>
+          <div class="tb" id="ntrp30" onclick="selL('3.0')">3.0</div>
+          <div class="tb" id="ntrp35" onclick="selL('3.5')">3.5</div>
+          <div class="tb" id="ntrp40" onclick="selL('4.0')">4.0</div>
+          <div class="tb" id="ntrp45" onclick="selL('4.5')">4.5</div>
+          <div class="tb" id="ntrp50" onclick="selL('5.0')">5.0</div>
+        </div>
+      </div>
+      <div id="pinGroup" class="form-group"><label class="form-label">PIN (4자리)</label><input type="number" class="form-input" id="mPin" placeholder="0000"></div>
+      <div id="guestSessGroup" class="form-group" style="display:none;"><label class="form-label">참가 세션</label>
+        <select class="form-select" id="guestSessSelect"><option value="">세션 선택</option></select>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn btn-ghost btn-block" onclick="cm('moAddM')">취소</button><button class="btn btn-primary btn-block" onclick="saveM()">저장</button></div>
+  </div>
+</div>
+
+<div class="mo" id="moSlot">
+  <div class="modal"><div class="mhw"><div class="mh"></div></div>
+    <div class="mhead"><div class="mtitle" id="slotTitle">시간대 추가</div></div>
+    <div class="mbody">
+      <div class="form-group"><label class="form-label">이름 (예: 풀타임, 늦참)</label><input type="text" class="form-input" id="slotLabel" placeholder="시간대 이름"></div>
+      <div class="form-group"><label class="form-label">시작 시간</label><input type="time" class="form-input" id="slotStart"></div>
+      <div class="form-group"><label class="form-label">종료 시간</label><input type="time" class="form-input" id="slotEnd"></div>
+      <div class="form-group"><label class="form-label">색상</label>
+        <div class="cs-wrap" id="csWrap"></div>
+        <input type="color" id="slotColor" style="margin-top:10px;width:100%;height:40px;border:1px solid var(--border2);border-radius:10px;cursor:pointer;">
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn btn-ghost btn-block" onclick="cm('moSlot')">취소</button><button class="btn btn-primary btn-block" onclick="saveSlot()">저장</button></div>
+  </div>
+</div>
+
+<div class="mo" id="moCourt">
+  <div class="modal"><div class="mhw"><div class="mh"></div></div>
+    <div class="mhead"><div class="mtitle" id="courtTitle">코트 추가</div></div>
+    <div class="mbody">
+      <div class="form-group"><label class="form-label">코트 이름 (예: TS 3코트)</label><input type="text" class="form-input" id="courtName" placeholder="코트 이름"></div>
+    </div>
+    <div class="mfoot"><button class="btn btn-ghost btn-block" onclick="cm('moCourt')">취소</button><button class="btn btn-primary btn-block" onclick="saveCourt()">저장</button></div>
+  </div>
+</div>
+
+<script>
+const SB_URL='https://oqzwvpyxxwmcvdscrepo.supabase.co';
+const SB_KEY='sb_publishable_sbyvRnYLRxDFIimsLgJ2tw_QHFBc7MQ';
+const db=supabase.createClient(SB_URL,SB_KEY);
+const COLORS=['#3B82F6','#EAB308','#EF4444','#10B981','#8B5CF6','#F97316','#EC4899','#6366F1'];
+const TENNIS_SCORES=[['6','0'],['6','1'],['6','2'],['6','3'],['6','4'],['5','5'],['4','6'],['3','6'],['2','6'],['1','6'],['0','6']];
+
+let CU=null,members=[],slots=[],sessions=[],courts=[];
+let curSess=null,curMatches=[],curAtt=[];
+let pinBuf='',pinMid=null;
+let nmType='regular',nmG='M',nmL='2.0';
+let nsRounds=5,nsRoundTimes=[];
+let editSlotId=null,editCourtId=null,editRoundNum=null;
+let curRP='quarter',curMP='quarter';
+let openMenu=null;
+// drag
+let dragSrc=null; // {matchId,field,memberId}
+
+function ld(v){document.getElementById('ldo').style.display=v?'flex':'none';}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+function om(id){document.getElementById(id).classList.add('open');}
+function cm(id){document.getElementById(id).classList.remove('open');}
+function fmtD(d){if(!d)return'';const dt=new Date(d+'T00:00:00');return`${dt.getMonth()+1}월 ${dt.getDate()}일 (${['일','월','화','수','목','금','토'][dt.getDay()]})`;}
+function gP(id){return members.find(m=>m.id===id);}
+function getRange(p){
+  const now=new Date(),y=now.getFullYear(),mo=now.getMonth();
+  let s;
+  if(p==='quarter')s=new Date(y,Math.floor(mo/3)*3,1);
+  else if(p==='half')s=new Date(y,mo<6?0:6,1);
+  else if(p==='year')s=new Date(y,0,1);
+  else s=new Date('2000-01-01');
+  return{s:s.toISOString().split('T')[0],e:now.toISOString().split('T')[0]};
+}
+function addMins(t,m){const[h,mm]=t.split(':').map(Number);const tot=h*60+mm+m;return`${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;}
+
+async function init(){
+  ld(true);
+  try{
+    const[{data:m},{data:sl},{data:se},{data:co},{data:su}]=await Promise.all([
+      db.from('members').select('*').eq('active',true).order('name'),
+      db.from('time_slots').select('*').eq('active',true).order('sort_order'),
+      db.from('sessions').select('*').order('date',{ascending:false}),
+      db.from('courts').select('*').eq('active',true).order('sort_order'),
+      db.from('session_setups').select('*').order('sort_order')
+    ]);
+    members=m||[];slots=sl||[];sessions=se||[];courts=co||[];setups=su||[];
+  }catch(e){console.error(e);}
+  ld(false);
+  const sel=document.getElementById('pinSel');
+  members.filter(m=>m.active&&m.type==='regular').forEach(m=>{
+    const o=document.createElement('option');o.value=m.id;o.textContent=m.name+(m.is_admin?' 👑':'');sel.appendChild(o);
+  });
+  document.getElementById('pinScreen').classList.add('active');
+}
+
+// ── PIN ──
+function onSelChange(){pinBuf='';pinMid=document.getElementById('pinSel').value;renderDots();document.getElementById('pinErr').textContent='';}
+function pi(d){if(!pinMid){toast('회원을 먼저 선택하세요');return;}if(pinBuf.length>=4)return;pinBuf+=d;renderDots();if(pinBuf.length===4)setTimeout(checkPin,120);}
+function pd(){pinBuf=pinBuf.slice(0,-1);renderDots();}
+function renderDots(){document.querySelectorAll('.pin-dot').forEach((d,i)=>{d.classList.toggle('filled',i<pinBuf.length);d.classList.remove('error');});}
+async function checkPin(){
+  const m=members.find(m=>m.id===pinMid);
+  if(!m){pinBuf='';renderDots();return;}
+  if(m.pin===pinBuf){CU=m;enterApp();}
+  else{
+    document.querySelectorAll('.pin-dot').forEach(d=>d.classList.add('error'));
+    document.getElementById('pinErr').textContent='PIN이 올바르지 않습니다';
+    setTimeout(()=>{pinBuf='';renderDots();document.getElementById('pinErr').textContent='';},800);
+  }
+}
+function logout(){CU=null;pinBuf='';pinMid=null;document.getElementById('pinSel').value='';renderDots();document.getElementById('appScreen').classList.remove('active');document.getElementById('pinScreen').classList.add('active');}
+function enterApp(){
+  document.getElementById('pinScreen').classList.remove('active');
+  document.getElementById('appScreen').classList.add('active');
+  const b=document.getElementById('userBadge');
+  b.textContent=CU.is_admin?`👑 ${CU.name}`:CU.name;
+  b.className='user-badge'+(CU.is_admin?' admin':'');
+  document.getElementById('adminNav').style.display=CU.is_admin?'flex':'none';
+  document.getElementById('memberNav').style.display=CU.is_admin?'none':'flex';
+  document.getElementById('adminSchedBtns').style.display=CU.is_admin?'flex':'none';
+  document.getElementById('genBtn').style.display=CU.is_admin?'flex':'none';
+  document.getElementById('saveSchedBtn').style.display=CU.is_admin?'flex':'none';
+  if(CU.is_admin){sp('schedule');renderSessSel();renderSlots();renderCourtList();renderMgmt();}
+  else{sp('home');renderHome();}
+}
+
+// ── NAV ──
+function sp(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const pg=document.getElementById('page-'+name);if(pg)pg.classList.add('active');
+  ['nav-'+name,'nav-'+name+'-m'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('active');});
+  if(name==='ranking')renderRanking();
+  if(name==='mypage')renderMyPage();
+  if(name==='mgmt')renderMgmt();
+  if(name==='settings'){renderSetupListPage();renderSlots();renderCourtList();}
+  if(name==='records')renderRecords();
+  if(name==='home')renderHome();
+}
+function switchMTab(t,el){
+  document.querySelectorAll('#page-mgmt .tab-item').forEach(b=>b.classList.remove('active'));el.classList.add('active');
+  document.getElementById('mtRegular').style.display=t==='regular'?'block':'none';
+  document.getElementById('mtGuest').style.display=t==='guest'?'block':'none';
+}
+
+// ── SESSION ──
+function renderSessSel(){
+  const sel=document.getElementById('sessSelect');const cur=sel.value;
+  sel.innerHTML='<option value="">세션 선택...</option>';
+  sessions.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=fmtD(s.date);sel.appendChild(o);});
+  if(cur)sel.value=cur;
+}
+
+// ── SETUPS ──
+let setups=[]; // loaded from DB
+
+async function loadSetups(){
+  const{data}=await db.from('session_setups').select('*').order('sort_order');
+  setups=data||[];
+  renderSetupSelect();
+}
+
+function renderSetupSelect(){
+  const sel=document.getElementById('setupSelect');
+  if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">직접 입력</option>';
+  setups.forEach(s=>{
+    const o=document.createElement('option');o.value=s.id;o.textContent=s.name;sel.appendChild(o);
+  });
+  if(cur)sel.value=cur;
+}
+
+function loadSetup(){
+  const sid=document.getElementById('setupSelect').value;
+  if(!sid){return;}
+  const setup=setups.find(s=>s.id===sid);
+  if(!setup)return;
+  nsRounds=setup.rounds;
+  document.getElementById('nsRoundsSelect').value=String(nsRounds);
+  // court names — handle both array and string formats
+  const cn=setup.court_names||[];
+  document.getElementById('courtNamesInput').value=Array.isArray(cn)?cn.join(', '):cn;
+  // round times
+  let rts=[];
+  try{rts=JSON.parse(setup.round_times||'[]');}catch{rts=[];}
+  nsRoundTimes=[...rts];
+  renderRtGridFromData(rts,nsRounds);
+}
+
+function onRoundsChange(){
+  nsRounds=parseInt(document.getElementById('nsRoundsSelect').value)||5;
+  // rebuild grid keeping existing times, extending/trimming as needed
+  const existing=collectRtFromInputs();
+  renderRtGridFromData(existing,nsRounds);
+}
+
+function renderRtGrid(){
+  // default: build from 06:15, each round ~30min with 5min break
+  const defaults=[
+    {r:1,s:'06:15',e:'06:45'},
+    {r:2,s:'06:45',e:'07:30'},
+    {r:3,s:'07:30',e:'08:00'},
+    {r:4,s:'08:00',e:'08:30'},
+    {r:5,s:'08:30',e:'09:00'},
+    {r:6,s:'09:00',e:'09:30'},
+    {r:7,s:'09:30',e:'10:00'},
+    {r:8,s:'10:00',e:'10:30'},
+  ];
+  renderRtGridFromData(defaults.slice(0,nsRounds),nsRounds);
+}
+
+function renderRtGridFromData(rts,count){
+  const n=count||nsRounds;
+  const grid=document.getElementById('rtGrid');
+  nsRoundTimes=[];
+  const rows=Array.from({length:n},(_,i)=>{
+    const existing=rts[i];
+    const s=existing?.s||'06:00';
+    const e=existing?.e||addMins(s,30);
+    nsRoundTimes.push({r:i+1,s,e});
+    return`<div class="rt-row" id="rt-row-${i+1}">
+      <span class="rt-lbl">R${i+1}</span>
+      <input class="rt-input" type="time" id="rt-s-${i+1}" value="${s}" onchange="onRtStartChange(${i+1},this.value)">
+      <span style="font-size:12px;color:var(--text3);padding:0 2px;">~</span>
+      <input class="rt-input" type="time" id="rt-e-${i+1}" value="${e}" onchange="onRtEndChange(${i+1},this.value)">
+    </div>`;
+  });
+  grid.innerHTML=rows.join('');
+}
+
+function onRtStartChange(r,val){
+  // update stored
+  if(nsRoundTimes[r-1])nsRoundTimes[r-1].s=val;
+}
+function onRtEndChange(r,val){
+  if(nsRoundTimes[r-1])nsRoundTimes[r-1].e=val;
+  // cascade: next round's start = this round's end
+  const nextEl=document.getElementById(`rt-s-${r+1}`);
+  if(nextEl){
+    nextEl.value=val;
+    if(nsRoundTimes[r])nsRoundTimes[r].s=val;
+  }
+}
+
+function collectRtFromInputs(){
+  return Array.from({length:nsRounds},(_,i)=>({
+    r:i+1,
+    s:document.getElementById(`rt-s-${i+1}`)?.value||'06:00',
+    e:document.getElementById(`rt-e-${i+1}`)?.value||'06:30'
+  }));
+}
+
+function openSaveSetup(){
+  if(setups.length>=5){toast('셋업은 최대 5개까지 저장 가능합니다');return;}
+  document.getElementById('setupName').value='';
+  om('moSaveSetup');
+}
+
+async function confirmSaveSetup(){
+  const name=document.getElementById('setupName').value.trim();
+  if(!name){toast('셋업 이름을 입력하세요');return;}
+  const rts=collectRtFromInputs();
+  const courtNames=document.getElementById('courtNamesInput').value.split(',').map(s=>s.trim()).filter(Boolean);
+  ld(true);
+  const{data,error}=await db.from('session_setups').insert({
+    name,rounds:nsRounds,round_times:JSON.stringify(rts),
+    court_names:courtNames,sort_order:setups.length+1
+  }).select().single();
+  ld(false);
+  if(error){toast('오류: '+error.message);return;}
+  setups.push(data);
+  renderSetupSelect();
+  document.getElementById('setupSelect').value=data.id;
+  cm('moSaveSetup');toast(`✅ "${name}" 저장 완료`);
+}
+
+function openNewSess(){
+  const d=new Date();document.getElementById('sessDate').value=d.toISOString().split('T')[0];
+  nsRounds=5;
+  document.getElementById('nsRoundsSelect').value='5';
+  document.getElementById('courtNamesInput').value='';
+  renderRtGrid();
+  renderSetupSelect();
+  om('moNewSess');
+}
+
+async function createSess(){
+  const date=document.getElementById('sessDate').value;
+  if(!date){toast('날짜를 선택하세요');return;}
+  const courtNames=document.getElementById('courtNamesInput').value.split(',').map(s=>s.trim()).filter(Boolean);
+  if(courtNames.length===0){toast('코트 이름을 입력하세요');return;}
+  const rts=collectRtFromInputs();
+  ld(true);
+  const{data,error}=await db.from('sessions').insert({
+    date,courts:courtNames.length,rounds:nsRounds,status:'draft',
+    start_time:rts[0]?.s||'06:00',round_minutes:30,
+    court_ids:[],court_names:courtNames,
+    round_times:JSON.stringify(rts)
+  }).select().single();
+  ld(false);
+  if(error){toast('오류: '+error.message);return;}
+  sessions.unshift(data);renderSessSel();
+  document.getElementById('sessSelect').value=data.id;
+  cm('moNewSess');await loadSess();toast('✅ 세션 생성 완료');
+}
+
+// ── RECORDS ──
+let detailSessId=null;
+
+async function renderRecords(){
+  ld(true);
+  const{data:sessList}=await db.from('sessions').select('*').order('date',{ascending:false});
+  ld(false);
+  sessions=sessList||[];
+  const list=document.getElementById('recordsList');
+  document.getElementById('recordsCount').textContent=`전체 ${sessions.length}회`;
+  if(!sessions.length){
+    list.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">저장된 경기 기록이 없습니다</div></div>`;
+    return;
+  }
+  list.innerHTML=sessions.map(s=>{
+    const courtNames=(s.court_names||[]).join(' · ')||`${s.courts||1}코트`;
+    return`<div class="card" style="cursor:pointer;margin-bottom:8px;" onclick="openSessDetail('${s.id}')">
+      <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;">
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:700;">${fmtD(s.date)}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:3px;">${courtNames} · ${s.rounds||5}R</div>
+        </div>
+        <span style="color:var(--text3);font-size:20px;">›</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openSessDetail(sid){
+  detailSessId=sid;
+  const s=sessions.find(x=>x.id===sid);
+  if(!s)return;
+  ld(true);
+  const[{data:ms},{data:att}]=await Promise.all([
+    db.from('matches').select('*').eq('session_id',sid).order('round').order('court'),
+    db.from('attendances').select('*,slot:time_slot_id(*)').eq('session_id',sid)
+  ]);
+  ld(false);
+  const matches=ms||[];const attList=att||[];
+  const courtNames=(s.court_names||[]);
+  const getCourtN=(cid,cn)=>{if(courtNames.length>=cn)return courtNames[cn-1];return'COURT '+cn;};
+
+  // 라운드별 그룹화
+  const rds={};matches.forEach(m=>{if(!rds[m.round])rds[m.round]=[];rds[m.round].push(m);});
+
+  // 개인 통계
+  const gc={};attList.forEach(a=>{gc[a.member_id]=0;});
+  matches.forEach(m=>[m.team1_p1,m.team1_p2,m.team2_p1,m.team2_p2].filter(Boolean).forEach(id=>{if(gc[id]!==undefined)gc[id]++;}));
+
+  const statsHtml=attList.length?`<div style="margin-bottom:14px;">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;margin-bottom:6px;">참석 인원 (${attList.length}명)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;">
+      ${attList.map(a=>{
+        const p=gP(a.member_id);if(!p)return'';
+        const sl=a.slot;const col=sl?sl.hex_color:'var(--border2)';
+        return`<div style="display:flex;align-items:center;gap:4px;padding:4px 9px;background:var(--bg);border-radius:8px;font-size:12px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:${col};"></div>
+          <span style="font-weight:600;">${p.name}</span>
+          <span style="color:var(--court);font-weight:700;">${gc[p.id]||0}게임</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`:'';
+
+  const roundsHtml=Object.entries(rds).map(([r,ms2])=>{
+    let rts=[];try{rts=JSON.parse(s.round_times||'[]');}catch{}
+    const rt=rts.find(x=>x.r===Number(r));
+    const timeStr=rt?`${rt.s}~${rt.e}`:'';
+    return`<div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:700;color:var(--court);">R${r} 라운드</span>
+        <span style="font-size:11px;color:var(--text2);">${timeStr}</span>
+      </div>
+      ${ms2.map(m=>{
+        const t1=[m.team1_p1,m.team1_p2].filter(Boolean).map(id=>gP(id)?.name||'?');
+        const t2=[m.team2_p1,m.team2_p2].filter(Boolean).map(id=>gP(id)?.name||'?');
+        const cname=getCourtN(m.court_id,m.court);
+        const has=m.score1!==null&&m.score2!==null;
+        const r1=has&&m.score1>m.score2?'win':has&&m.score1<m.score2?'lose':'draw';
+        const r2=has&&m.score2>m.score1?'win':has&&m.score2<m.score1?'lose':'draw';
+        const lb={win:'WIN',lose:'LOSE',draw:'DRAW'};
+        return`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
+          <div style="font-size:10px;font-weight:700;color:var(--court);margin-bottom:6px;">${cname}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;font-size:13px;font-weight:600;">${t1.join(' + ')}</div>
+            ${has?`<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              <span class="badge badge-${r1}">${lb[r1]} ${m.score1}</span>
+              <span style="color:var(--text3);font-size:12px;">:</span>
+              <span class="badge badge-${r2}">${m.score2} ${lb[r2]}</span>
+            </div>`:`<span style="font-size:11px;color:var(--text3);">미입력</span>`}
+            <div style="flex:1;font-size:13px;font-weight:600;text-align:right;">${t2.join(' + ')}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+
+  document.getElementById('sessDetailTitle').textContent=fmtD(s.date);
+  document.getElementById('sessDetailSub').textContent=`${(s.court_names||[]).join(' · ')||s.courts+'코트'} · ${s.rounds}R · 참석 ${attList.length}명`;
+  document.getElementById('sessDetailContent').innerHTML=statsHtml+roundsHtml;
+  om('moSessDetail');
+}
+
+async function deleteSessFromDetail(){
+  if(!detailSessId){return;}
+  const s=sessions.find(x=>x.id===detailSessId);
+  if(!confirm(`${fmtD(s?.date)} 세션을 삭제할까요?
+(대진과 출석 기록이 모두 삭제됩니다)`))return;
+  ld(true);
+  await db.from('matches').delete().eq('session_id',detailSessId);
+  await db.from('attendances').delete().eq('session_id',detailSessId);
+  await db.from('sessions').delete().eq('id',detailSessId);
+  ld(false);
+  sessions=sessions.filter(s=>s.id!==detailSessId);
+  // 항상 드롭박스 갱신
+  renderSessSel();
+  if(curSess?.id===detailSessId){
+    curSess=null;curMatches=[];curAtt=[];
+    document.getElementById('sessSelect').value='';
+    document.getElementById('schedNone').style.display='block';
+    document.getElementById('schedBody').style.display='none';
+    document.getElementById('schedSub').textContent='세션을 선택하거나 생성하세요';
+  }
+  cm('moSessDetail');
+  renderRecords();
+  toast('✅ 세션 삭제 완료');
+}
+
+async function deleteSess(){
+  if(!curSess){toast('삭제할 세션을 선택하세요');return;}
+  if(!confirm(`${curSess.date} 세션을 삭제할까요?
+(대진과 출석 기록이 모두 삭제됩니다)`))return;
+  ld(true);
+  await db.from('matches').delete().eq('session_id',curSess.id);
+  await db.from('attendances').delete().eq('session_id',curSess.id);
+  await db.from('sessions').delete().eq('id',curSess.id);
+  ld(false);
+  sessions=sessions.filter(s=>s.id!==curSess.id);
+  curSess=null;curMatches=[];curAtt=[];
+  renderSessSel();
+  document.getElementById('sessSelect').value='';
+  document.getElementById('schedNone').style.display='block';
+  document.getElementById('schedBody').style.display='none';
+  document.getElementById('schedSub').textContent='세션을 선택하거나 생성하세요';
+  toast('✅ 세션 삭제 완료');
+}
+
+async function copySess(){
+  if(!curSess){toast('복사할 세션을 먼저 선택하세요');return;}
+  const d=new Date(curSess.date+'T00:00:00');d.setDate(d.getDate()+7);
+  const newDate=d.toISOString().split('T')[0];
+  if(!confirm(`${fmtD(newDate)}으로 복사할까요?`))return;
+  ld(true);
+  const{data}=await db.from('sessions').insert({
+    date:newDate,courts:curSess.courts,rounds:curSess.rounds,status:'draft',
+    start_time:curSess.start_time,round_minutes:curSess.round_minutes,
+    court_ids:curSess.court_ids||[],court_names:curSess.court_names||[],
+    round_times:curSess.round_times
+  }).select().single();
+  ld(false);
+  if(!data)return;
+  sessions.unshift(data);renderSessSel();
+  document.getElementById('sessSelect').value=data.id;
+  await loadSess();toast('✅ 다음 주 세션 복사 완료');
+}
+
+async function loadSess(){
+  const sid=document.getElementById('sessSelect').value;
+  if(!sid){document.getElementById('schedNone').style.display='block';document.getElementById('schedBody').style.display='none';return;}
+  curSess=sessions.find(s=>s.id===sid);
+  ld(true);
+  const[{data:att},{data:mat},{data:freshMembers}]=await Promise.all([
+    db.from('attendances').select('*,slot:time_slot_id(*)').eq('session_id',sid),
+    db.from('matches').select('*').eq('session_id',sid).order('round').order('court'),
+    db.from('members').select('*').eq('active',true).order('name')
+  ]);
+  curAtt=att||[];curMatches=mat||[];
+  if(freshMembers)members=freshMembers;
+  ld(false);
+  document.getElementById('schedSub').textContent=fmtD(curSess.date)+' · '+(curSess.courts||1)+'코트 '+(curSess.rounds||5)+'R';
+  document.getElementById('schedNone').style.display='none';
+  document.getElementById('schedBody').style.display='block';
+  renderAtt();renderRounds();
+}
+
+// round times helpers
+function getRoundTimes(){
+  try{return JSON.parse(curSess.round_times||'[]');}catch{return[];}
+}
+function getRoundTimeStr(r){
+  const rts=getRoundTimes();const rt=rts.find(x=>x.r===r);
+  if(rt)return`${rt.s}~${rt.e}`;
+  if(curSess?.start_time){const rm=curSess.round_minutes||30;const s=addMins(curSess.start_time,(r-1)*rm);const e=addMins(curSess.start_time,r*rm);return`${s}~${e}`;}
+  return'';
+}
+// round time edit
+function openRoundTimeEdit(r){
+  editRoundNum=r;
+  document.getElementById('rtModalTitle').textContent=`R${r} 시간 수정`;
+  const rts=getRoundTimes();const rt=rts.find(x=>x.r===r);
+  document.getElementById('rtStart').value=rt?.s||'06:00';
+  document.getElementById('rtEnd').value=rt?.e||'06:30';
+  om('moRoundTime');
+}
+async function saveRoundTime(){
+  const s=document.getElementById('rtStart').value;
+  const e=document.getElementById('rtEnd').value;
+  if(!s||!e){toast('시간을 입력하세요');return;}
+  let rts=getRoundTimes();
+  const idx=rts.findIndex(x=>x.r===editRoundNum);
+  if(idx>=0)rts[idx]={r:editRoundNum,s,e};
+  else rts.push({r:editRoundNum,s,e});
+  rts.sort((a,b)=>a.r-b.r);
+  ld(true);
+  await db.from('sessions').update({round_times:JSON.stringify(rts)}).eq('id',curSess.id);
+  curSess.round_times=JSON.stringify(rts);
+  ld(false);
+  cm('moRoundTime');renderRounds();toast('✅ 시간 수정 완료');
+}
+
+// ── ATTENDANCE ──
+function makeChip(p, a) {
+  const sl=a?.slot;const col=sl?sl.hex_color:'var(--border)';
+  return`<div class="att-chip${a?' present':''}" id="chip-${p.id}"
+    style="color:${a?sl?.hex_color||'var(--court)':'var(--text2)'};border-color:${a?sl?.hex_color||'var(--court)':'var(--border)'};"
+    onclick="${CU?.is_admin?`toggleMenu('${p.id}')`:''}">
+    <div class="slot-dot" style="background:${col};"></div>
+    <span>${p.name}</span>
+    ${a&&sl?`<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;background:${sl.hex_color}22;color:${sl.hex_color};">${sl.label}</span>`:''}
+  </div>`;
+}
+function renderAtt(){
+  const attMemberIds=curAtt.map(a=>a.member_id);
+  const sid=curSess?.id||'';
+  const isGuestHere=m=>m.type==='guest'&&(m.guest_session_id===sid||!m.guest_session_id);
+
+  // 정회원 목록: 관리자는 전체, 회원은 출석 처리된 사람만
+  const regularList=CU?.is_admin
+    ? members.filter(m=>m.active&&m.type==='regular')
+    : members.filter(m=>m.active&&m.type==='regular'&&attMemberIds.includes(m.id));
+
+  // 게스트 목록: 이 세션 소속 게스트
+  const guestList=CU?.is_admin
+    ? members.filter(m=>m.active&&isGuestHere(m))
+    : members.filter(m=>m.active&&isGuestHere(m)&&attMemberIds.includes(m.id));
+
+  const regularAtt=regularList.filter(p=>attMemberIds.includes(p.id)).length;
+  const guestAtt=guestList.filter(p=>attMemberIds.includes(p.id)).length;
+  const totalAtt=attMemberIds.length;
+
+  document.getElementById('attCount').textContent=`${totalAtt}명 참석`;
+  document.getElementById('attRegularCount').textContent=`${regularAtt}/${regularList.length}명`;
+  document.getElementById('attGuestCount').textContent=`${guestAtt}/${guestList.length}명`;
+
+  // 게스트 섹션 - 게스트가 없으면 숨기기
+  document.getElementById('attGuestSection').style.display=guestList.length>0?'block':'none';
+
+  document.getElementById('attGridRegular').innerHTML=regularList.map(p=>{
+    const a=curAtt.find(a=>a.member_id===p.id);
+    return makeChip(p,a);
+  }).join('');
+
+  document.getElementById('attGridGuest').innerHTML=guestList.map(p=>{
+    const a=curAtt.find(a=>a.member_id===p.id);
+    return makeChip(p,a);
+  }).join('');
+}
+function toggleMenu(pid){
+  document.querySelectorAll('.chip-menu').forEach(m=>m.remove());
+  if(openMenu===pid){openMenu=null;return;}openMenu=pid;
+  const chip=document.getElementById('chip-'+pid);
+  const menu=document.createElement('div');menu.className='chip-menu';
+  menu.innerHTML=`<div class="cm-item" onclick="setAtt('${pid}',null)"><div class="cm-dot" style="background:var(--border2);"></div>불참</div>`;
+  slots.forEach(s=>{menu.innerHTML+=`<div class="cm-item" onclick="setAtt('${pid}','${s.id}')"><div class="cm-dot" style="background:${s.hex_color};"></div>${s.label} (${s.start_time}~${s.end_time})</div>`;});
+  chip.appendChild(menu);
+  setTimeout(()=>document.addEventListener('click',closeMenuOut,{once:true}),0);
+}
+function closeMenuOut(e){if(!e.target.closest('.chip-menu')&&!e.target.closest('.att-chip')){document.querySelectorAll('.chip-menu').forEach(m=>m.remove());openMenu=null;}}
+async function setAtt(pid,slotId){
+  document.querySelectorAll('.chip-menu').forEach(m=>m.remove());openMenu=null;
+  if(!curSess)return;ld(true);
+  const ex=curAtt.find(a=>a.member_id===pid);
+  if(slotId===null){
+    if(ex){await db.from('attendances').delete().eq('id',ex.id);curAtt=curAtt.filter(a=>a.member_id!==pid);}
+  }else if(ex){
+    await db.from('attendances').update({time_slot_id:slotId}).eq('id',ex.id);
+    const{data:fresh}=await db.from('attendances').select('*,slot:time_slot_id(*)').eq('id',ex.id).single();
+    const idx=curAtt.findIndex(a=>a.id===ex.id);if(idx>=0&&fresh)curAtt[idx]=fresh;
+  }else{
+    const{data}=await db.from('attendances').select('*,slot:time_slot_id(*)').eq('id',(await db.from('attendances').insert({session_id:curSess.id,member_id:pid,time_slot_id:slotId}).select().single()).data?.id).single();
+    if(data)curAtt.push(data);
+  }
+  ld(false);renderAtt();
+}
+
+// ── SCHEDULE GEN ──
+function canPlayRound(memberId,roundNum){
+  const att=curAtt.find(a=>a.member_id===memberId);
+  if(!att||!att.slot)return false;
+  const sl=att.slot;
+  const rts=getRoundTimes();const rt=rts.find(x=>x.r===roundNum);
+  if(!rt)return true;
+  return sl.start_time<=rt.s&&sl.end_time>=rt.e;
+}
+
+async function saveAllScores(){
+  if(!curSess){toast('세션을 선택하세요');return;}
+  // 현재 화면의 모든 점수 입력창을 읽어서 저장
+  const updates=[];
+  curMatches.forEach(m=>{
+    const el1=document.getElementById('sc1-'+m.id);
+    const el2=document.getElementById('sc2-'+m.id);
+    if(!el1||!el2)return; // 이미 점수 있는 경기는 인라인 입력창 없음
+    const s1=parseInt(el1.value),s2=parseInt(el2.value);
+    if(isNaN(s1)||isNaN(s2))return;
+    if(s1===m.score1&&s2===m.score2)return; // 변경 없음
+    m.score1=s1;m.score2=s2;
+    updates.push(db.from('matches').update({score1:s1,score2:s2}).eq('id',m.id));
+  });
+  if(!updates.length){toast('저장할 점수가 없습니다');return;}
+  ld(true);
+  await Promise.all(updates);
+  ld(false);
+  renderRounds();
+  toast(`✅ ${updates.length}개 점수 저장 완료`);
+}
+
+async function genSched(){
+  if(!curSess)return;
+  const att=curAtt.map(a=>a.member_id);
+  if(att.length<4){toast('최소 4명이 필요합니다');return;}
+  if(curMatches.length>0&&!confirm('기존 대진을 삭제하고 새로 생성할까요?'))return;
+  ld(true);
+  if(curMatches.length>0)await db.from('matches').delete().eq('session_id',curSess.id);
+  const courtNames=curSess.court_names||[];
+  const numCourts=Math.max(1,courtNames.length||curSess.courts||1);
+  const built=buildMatches(att,curSess.rounds||5,numCourts);
+  const rows=built.map(m=>({
+    session_id:curSess.id,round:m.r,court:m.c,
+    court_id:null,
+    team1_p1:m.t1[0],team1_p2:m.t1[1]||null,
+    team2_p1:m.t2[0],team2_p2:m.t2[1]||null
+  }));
+  const{data,error}=await db.from('matches').insert(rows).select();
+  ld(false);
+  if(error){toast('오류: '+error.message);return;}
+  curMatches=data||[];renderRounds();toast('🎾 대진 생성 완료!');
+}
+
+function buildMatches(pids,rounds,numCourts){
+  const res=[];
+  const pairCount={},gameCount={},playCount={};
+  // 초보자와 같이 게임한 횟수 추적: beginnerGameCount[playerId][beginnerId] = 횟수
+  const beginnerGameCount={};
+  const pk=(a,b)=>[a,b].sort().join('|');
+  const gk=arr=>[...arr].sort().join('|');
+  pids.forEach(p=>{playCount[p]=0;beginnerGameCount[p]={};});
+
+  const shuffle=arr=>{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+
+  // 초보자 판별: NTRP <= 2.0 또는 레벨 D
+  const isBeginnerPid=pid=>{
+    const m=members.find(x=>x.id===pid);
+    if(!m)return false;
+    const lv=parseFloat(m.level)||0;
+    return lv>0&&lv<=2.0;
+  };
+  const beginners=pids.filter(isBeginnerPid);
+
+  // 각 선수 참가 가능 라운드 캐시
+  const arCache={};
+  pids.forEach(p=>{
+    arCache[p]=Array.from({length:rounds},(_,i)=>i+1).filter(r=>canPlayRound(p,r));
+  });
+
+  const isFullTime=pid=>arCache[pid].length===rounds;
+  const isGuestPid=pid=>{const m=members.find(x=>x.id===pid);return m&&m.type==='guest';};
+
+  const totalSlots=rounds*numCourts*4;
+  const avgGames=totalSlots/Math.max(1,pids.length);
+  const getTarget=pid=>isFullTime(pid)?Math.max(4,Math.round(avgGames)):Math.max(3,arCache[pid].length);
+
+  // 게스트 첫 2라운드 연속 보장
+  const guestConsecRounds={};
+  pids.filter(isGuestPid).forEach(pid=>{
+    const ar=arCache[pid];
+    if(ar.length>=2)guestConsecRounds[pid]=[ar[0],ar[1]];
+    else if(ar.length===1)guestConsecRounds[pid]=[ar[0]];
+  });
+
+  // 초보자 공평 배분을 위한 불균형 점수 계산
+  // 각 초보자에 대해 선수별로 같이 게임한 횟수의 최대-최소 편차를 최소화
+  const beginnerImbalanceScore=(pid,gamePlayerIds)=>{
+    if(!beginners.length)return 0;
+    let score=0;
+    beginners.forEach(bid=>{
+      if(gamePlayerIds.includes(bid)&&bid!==pid){
+        // 이 pid가 bid와 같이 게임하게 되는 경우
+        const myCount=(beginnerGameCount[pid]?.[bid]||0)+1;
+        // 다른 non-beginner 선수들의 bid와의 게임 횟수 평균
+        const others=pids.filter(x=>x!==pid&&x!==bid&&!isBeginnerPid(x));
+        const avgOther=others.length?others.reduce((s,x)=>s+(beginnerGameCount[x]?.[bid]||0),0)/others.length:0;
+        // 내가 평균보다 많이 같이 하면 패널티
+        score+=Math.max(0,myCount-avgOther-1)*50;
+      }
+    });
+    return score;
+  };
+
+  for(let r=1;r<=rounds;r++){
+    const avail=pids.filter(pid=>canPlayRound(pid,r));
+    if(avail.length<4)continue;
+
+    const actualCourts=Math.min(numCourts,Math.floor(avail.length/4));
+    const slotsNeeded=actualCourts*4;
+
+    const scoreOf=pid=>{
+      const g=playCount[pid]||0;
+      const tgt=getTarget(pid);
+      const ar=arCache[pid];
+      const remainRounds=ar.filter(x=>x>=r).length;
+      const gapToTarget=tgt-g;
+
+      let score=g*10;
+      if(ar.length>0&&ar[0]===r)score-=800;
+
+      if(isGuestPid(pid)){
+        const cr=guestConsecRounds[pid]||[];
+        if(cr.includes(r)&&g<2)score-=1200;
+      }
+
+      if(gapToTarget>0){
+        const urgency=gapToTarget/Math.max(1,remainRounds);
+        score-=urgency*300;
+      }
+
+      score+=Math.random()*0.5;
+      return score;
+    };
+
+    const ranked=shuffle(avail).map(pid=>({pid,score:scoreOf(pid)})).sort((a,b)=>a.score-b.score);
+    const selected=ranked.slice(0,slotsNeeded).map(x=>x.pid);
+    const resting=avail.filter(p=>!selected.includes(p));
+
+    const pool_all=shuffle(selected);
+
+    for(let c=0;c<actualCourts;c++){
+      const pool=pool_all.slice(c*4,(c+1)*4);
+      if(pool.length<4)continue;
+
+      // 페어 중복 + 초보자 불균형 최소화
+      let best=Infinity,bp=null;
+      const perms=[[0,1,2,3],[0,2,1,3],[0,3,1,2]];
+      for(let trial=0;trial<10;trial++){
+        const tp=trial===0?pool:shuffle(pool);
+        perms.forEach(([a,b,cc,d])=>{
+          const t1=[tp[a],tp[b]],t2=[tp[cc],tp[d]];
+          const allFour=[tp[a],tp[b],tp[cc],tp[d]];
+          // 페어 중복
+          const pairSc=(pairCount[pk(t1[0],t1[1])]||0)*10+(pairCount[pk(t2[0],t2[1])]||0)*10;
+          // 같은 게임 중복
+          const gameSc=(gameCount[gk(allFour)]||0)*4;
+          // 초보자 불균형
+          let beginnerSc=0;
+          allFour.forEach(pid=>{
+            if(!isBeginnerPid(pid)){
+              beginnerSc+=beginnerImbalanceScore(pid,allFour);
+            }
+          });
+          const sc=pairSc+gameSc+beginnerSc+Math.random()*0.3;
+          if(sc<best){best=sc;bp=[tp[a],tp[b],tp[cc],tp[d]];}
+        });
+      }
+
+      const[p1,p2,p3,p4]=bp;
+      const t1=[p1,p2],t2=[p3,p4];
+      const allFour=[p1,p2,p3,p4];
+
+      // 초보자 게임 횟수 업데이트
+      beginners.forEach(bid=>{
+        if(allFour.includes(bid)){
+          allFour.filter(x=>x!==bid).forEach(pid=>{
+            if(!beginnerGameCount[pid])beginnerGameCount[pid]={};
+            beginnerGameCount[pid][bid]=(beginnerGameCount[pid][bid]||0)+1;
+          });
+        }
+      });
+
+      pairCount[pk(t1[0],t1[1])]=(pairCount[pk(t1[0],t1[1])]||0)+1;
+      pairCount[pk(t2[0],t2[1])]=(pairCount[pk(t2[0],t2[1])]||0)+1;
+      gameCount[gk(allFour)]=(gameCount[gk(allFour)]||0)+1;
+      [...t1,...t2].forEach(p=>{playCount[p]=(playCount[p]||0)+1;});
+      res.push({r,c:c+1,t1,t2,resting:c===0?resting:[]});
+    }
+  }
+  return res;
+}
+
+
+// ── RENDER ROUNDS + DRAG ──
+function getSlotColor(pid){const a=curAtt.find(a=>a.member_id===pid);return a?.slot?.hex_color||'var(--border2)';}
+function getCourtName(courtId,courtNum){
+  // prefer court_names text array on session
+  const names=curSess?.court_names||[];
+  if(names.length>=courtNum)return names[courtNum-1];
+  // fallback to courts table
+  if(courtId){const c=courts.find(c=>c.id===courtId);if(c)return c.name;}
+  return'COURT '+courtNum;
+}
+
+function calcSessionStats(){
+  // 세션 내 각 선수별 게임수, 휴식수
+  const attIds=curAtt.map(a=>a.member_id);
+  const gameCount={};
+  attIds.forEach(id=>{gameCount[id]=0;});
+  curMatches.forEach(m=>{
+    [m.team1_p1,m.team1_p2,m.team2_p1,m.team2_p2].filter(Boolean).forEach(id=>{
+      if(gameCount[id]!==undefined)gameCount[id]++;
+    });
+  });
+  return gameCount;
+}
+
+function getRoundResting(roundNum){
+  // 해당 라운드에 출석하지만 경기 배정 안 된 선수
+  const attIds=curAtt.map(a=>a.member_id);
+  const roundMatches=curMatches.filter(m=>m.round===roundNum);
+  const playing=new Set(roundMatches.flatMap(m=>[m.team1_p1,m.team1_p2,m.team2_p1,m.team2_p2].filter(Boolean)));
+  // 이 라운드에 참가 가능한 사람 중 경기 없는 사람
+  return attIds.filter(id=>canPlayRound(id,roundNum)&&!playing.has(id));
+}
+
+function renderRounds(){
+  const wrap=document.getElementById('roundsWrap');
+  if(!curMatches.length){
+    wrap.innerHTML=`<div class="empty" style="padding:32px 0;"><div class="empty-text" style="color:var(--text2);">출석 체크 후 자동 대진을 눌러보세요</div></div>`;
+    return;
+  }
+
+  // 세션 통계 바
+  const gameCount=calcSessionStats();
+  const attIds=curAtt.map(a=>a.member_id);
+  // 실제 대진이 있는 라운드 목록
+  const activeRounds=[...new Set(curMatches.map(m=>m.round))];
+  const statsHtml=curMatches.length===0?'':`<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;margin-bottom:8px;">개인별 게임/휴식</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${attIds.map(id=>{
+        const p=gP(id);if(!p)return'';
+        const g=gameCount[id]||0;
+        // 실제 대진이 있는 라운드 중 이 선수가 참가 가능한 라운드 수
+        const canPlayInActive=activeRounds.filter(r=>canPlayRound(id,r)).length;
+        const rest=Math.max(0,canPlayInActive-g);
+        const col=getSlotColor(id);
+        const isShort=g<3&&canPlayInActive>=3;
+        return`<div style="display:flex;align-items:center;gap:5px;padding:5px 9px;background:var(--bg);border-radius:8px;font-size:12px;border:1px solid ${isShort?'var(--red)':'transparent'};">
+          <div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0;"></div>
+          <span style="font-weight:600;">${p.name}</span>
+          <span style="color:${isShort?'var(--red)':'var(--court)'};font-weight:700;">${g}게임</span>
+          ${rest>0?`<span style="color:var(--text3);">휴${rest}</span>`:''}
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+
+  const rds={};curMatches.forEach(m=>{if(!rds[m.round])rds[m.round]=[];rds[m.round].push(m);});
+  const roundsHtml=Object.entries(rds).map(([r,ms])=>{
+    const restIds=getRoundResting(Number(r));
+    // 휴식자: 드래그 가능한 카드로 표시
+    const restHtml=restIds.length>0
+      ?`<div style="border-top:1px solid var(--border);padding:10px 12px;background:var(--amber-bg);">
+          <div style="font-size:11px;font-weight:700;color:var(--amber);letter-spacing:.4px;margin-bottom:6px;">휴식 (${restIds.length}명)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${restIds.map(id=>{
+              const p=gP(id);const col=getSlotColor(id);
+              if(!p)return'';
+              return CU?.is_admin
+                ?`<div class="pc rest-card" draggable="true"
+                    data-mid="REST" data-field="rest-${r}-${id}" data-member="${id}"
+                    ondragstart="pcStart(event)" ondragend="pcEnd(event)"
+                    ondragover="pcOver(event)" ondragleave="pcLeave(event)" ondrop="pcDrop(event)"
+                    style="background:var(--white);border-color:var(--amber);">
+                    <div class="pdot" style="background:${col};"></div>
+                    <span class="pname" style="color:var(--amber);">${p.name}</span>
+                    <span class="grip">⠿</span>
+                  </div>`
+                :`<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:var(--white);border-radius:8px;font-size:12px;font-weight:600;color:var(--amber);">
+                    <div style="width:7px;height:7px;border-radius:50%;background:${col};"></div>${p.name}
+                  </div>`;
+            }).join('')}
+          </div>
+        </div>`
+      :'';
+    return`<div class="round-section">
+      <div class="round-head">
+        <span class="round-label">R${r} 라운드</span>
+        <button class="round-time-btn" onclick="${CU?.is_admin?`openRoundTimeEdit(${r})`:'void(0)'}">${getRoundTimeStr(Number(r))}</button>
+      </div>
+      <div class="round-body">${ms.map(m=>renderMC(m)).join('')}</div>
+      ${restHtml}
+    </div>`;
+  }).join('');
+
+  wrap.innerHTML=statsHtml+roundsHtml;
+}
+
+function renderMC(m){
+  const cname=getCourtName(m.court_id,m.court);
+  const fields=[['team1_p1','team1','p1'],['team1_p2','team1','p2'],['team2_p1','team2','p1'],['team2_p2','team2','p2']];
+  const pCard=(field,memberId)=>{
+    if(!memberId){
+      return CU?.is_admin
+        ?`<div class="empty-slot" id="es-${m.id}-${field}" data-mid="${m.id}" data-field="${field}"
+            ondragover="esOver(event)" ondragleave="esLeave(event)" ondrop="esDrop(event)">빈 자리</div>`
+        :`<div class="empty-slot">빈 자리</div>`;
+    }
+    const p=gP(memberId);const col=getSlotColor(memberId);
+    return`<div class="pc" id="pc-${m.id}-${field}"
+      data-mid="${m.id}" data-field="${field}" data-member="${memberId}"
+      draggable="${CU?.is_admin}"
+      ondragstart="pcStart(event)" ondragend="pcEnd(event)"
+      ondragover="pcOver(event)" ondragleave="pcLeave(event)" ondrop="pcDrop(event)">
+      <div class="pdot" style="background:${col};"></div>
+      <span class="pname">${p?p.name:'?'}</span>
+      ${CU?.is_admin?'<span class="grip">⠿</span>':''}
+    </div>`;
+  };
+  const has=m.score1!==null&&m.score2!==null;
+  let scoreHtml='';
+  if(has){
+    const r1=m.score1>m.score2?'win':m.score1<m.score2?'lose':'draw';
+    const r2=m.score2>m.score1?'win':m.score2<m.score1?'lose':'draw';
+    const lb={win:'WIN',lose:'LOSE',draw:'DRAW'};
+    scoreHtml=`<div class="score-result">
+      <div class="score-box"><span class="badge badge-${r1}">${lb[r1]}</span><span class="snum">${m.score1}</span></div>
+      <div class="ssep2">:</div>
+      <div class="score-box"><span class="snum">${m.score2}</span><span class="badge badge-${r2}">${lb[r2]}</span></div>
+    </div>
+    ${CU?.is_admin?`<div style="text-align:right;margin-top:4px;"><button onclick="resetScore('${m.id}')" style="background:none;border:none;font-size:11px;color:var(--text3);cursor:pointer;">점수 수정</button></div>`:''}`;
+  }else if(CU?.is_admin){
+    const qBtns=TENNIS_SCORES.map(([a,b])=>`<button class="sq-btn" onclick="setScore('${m.id}',${a},${b})">${a}:${b}</button>`).join('');
+    scoreHtml=`<div class="score-inline">
+      <input class="score-in" type="number" id="sc1-${m.id}" min="0" max="99" placeholder="0" value="${m.score1??''}">
+      <div class="score-sep">:</div>
+      <input class="score-in" type="number" id="sc2-${m.id}" min="0" max="99" placeholder="0" value="${m.score2??''}">
+      <button class="score-save" onclick="saveScore('${m.id}')">저장</button>
+    </div>
+    <div class="score-quick">${qBtns}</div>`;
+  }
+  return`<div class="match-card" id="mc-${m.id}">
+    <div class="court-lbl">${cname}</div>
+    <div class="teams-row">
+      <div class="team-col"><div class="team-lbl">TEAM 1</div>${pCard('team1_p1',m.team1_p1)}${pCard('team1_p2',m.team1_p2)}</div>
+      <div style="display:flex;align-items:center;justify-content:center;width:20px;font-size:11px;font-weight:700;color:var(--text3);">VS</div>
+      <div class="team-col"><div class="team-lbl">TEAM 2</div>${pCard('team2_p1',m.team2_p1)}${pCard('team2_p2',m.team2_p2)}</div>
+    </div>
+    ${scoreHtml}
+  </div>`;
+}
+
+// ── DRAG & DROP ──
+function pcStart(e){
+  const el=e.currentTarget;
+  dragSrc={matchId:el.dataset.mid,field:el.dataset.field,memberId:el.dataset.member};
+  el.classList.add('is-dragging');
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',el.dataset.member);
+}
+function pcEnd(e){
+  e.currentTarget.classList.remove('is-dragging');
+  document.querySelectorAll('.drag-over-p').forEach(el=>el.classList.remove('drag-over-p'));
+}
+function pcOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over-p');}
+function pcLeave(e){e.currentTarget.classList.remove('drag-over-p');}
+function pcDrop(e){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over-p');
+  if(!dragSrc)return;
+  const tgt={matchId:e.currentTarget.dataset.mid,field:e.currentTarget.dataset.field,memberId:e.currentTarget.dataset.member};
+  if(dragSrc.matchId===tgt.matchId&&dragSrc.field===tgt.field){dragSrc=null;return;}
+  swapPlayers(dragSrc,tgt);dragSrc=null;
+}
+function esOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over-p');}
+function esLeave(e){e.currentTarget.classList.remove('drag-over-p');}
+function esDrop(e){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over-p');
+  if(!dragSrc)return;
+  const tgt={matchId:e.currentTarget.dataset.mid,field:e.currentTarget.dataset.field,memberId:null};
+  swapPlayers(dragSrc,tgt);dragSrc=null;
+}
+
+async function swapPlayers(src,tgt){
+  // 휴식자 카드(matchId===REST)에서 드래그한 경우
+  // → 타겟 슬롯의 선수와 교체 (타겟 선수는 휴식자가 됨)
+  const isRestSrc=src.matchId==='REST';
+  const isRestTgt=tgt.matchId==='REST';
+
+  if(isRestSrc&&isRestTgt){dragSrc=null;return;} // 휴식→휴식은 무의미
+
+  if(isRestSrc){
+    // 휴식자를 경기 슬롯에 넣기
+    const tm=curMatches.find(m=>m.id===tgt.matchId);
+    if(!tm)return;
+    const tv=tm[tgt.field]; // 기존 슬롯의 선수 (경기→휴식으로 나감)
+    tm[tgt.field]=src.memberId;
+    ld(true);
+    await db.from('matches').update({[tgt.field]:src.memberId}).eq('id',tm.id);
+    ld(false);
+    renderRounds();toast('✅ 대진 수정 완료');
+    return;
+  }
+
+  if(isRestTgt){
+    // 경기 중인 선수를 휴식으로 빼기 (슬롯을 null로)
+    const sm=curMatches.find(m=>m.id===src.matchId);
+    if(!sm)return;
+    sm[src.field]=null;
+    ld(true);
+    await db.from('matches').update({[src.field]:null}).eq('id',sm.id);
+    ld(false);
+    renderRounds();toast('✅ 대진 수정 완료');
+    return;
+  }
+
+  // 경기↔경기 스왑 (기존 로직)
+  const sm=curMatches.find(m=>m.id===src.matchId);
+  const tm=curMatches.find(m=>m.id===tgt.matchId);
+  if(!sm||!tm)return;
+  const sv=sm[src.field];const tv=tm[tgt.field];
+  sm[src.field]=tv||null;tm[tgt.field]=sv||null;
+  ld(true);
+  const updates=[];
+  updates.push(db.from('matches').update({[src.field]:tv||null}).eq('id',sm.id));
+  if(sm.id!==tm.id)updates.push(db.from('matches').update({[tgt.field]:sv||null}).eq('id',tm.id));
+  await Promise.all(updates);
+  ld(false);
+  renderRounds();toast('✅ 대진 수정 완료');
+}
+
+// ── SCORE ──
+function setScore(mid,s1,s2){
+  const el1=document.getElementById('sc1-'+mid);const el2=document.getElementById('sc2-'+mid);
+  if(el1)el1.value=s1;if(el2)el2.value=s2;
+}
+async function saveScore(mid){
+  const s1=parseInt(document.getElementById('sc1-'+mid)?.value);
+  const s2=parseInt(document.getElementById('sc2-'+mid)?.value);
+  if(isNaN(s1)||isNaN(s2)){toast('점수를 입력하세요');return;}
+  ld(true);
+  await db.from('matches').update({score1:s1,score2:s2}).eq('id',mid);
+  ld(false);
+  const m=curMatches.find(m=>m.id===mid);if(m){m.score1=s1;m.score2=s2;}
+  renderRounds();toast('✅ 점수 저장');
+}
+async function resetScore(mid){
+  ld(true);await db.from('matches').update({score1:null,score2:null}).eq('id',mid);ld(false);
+  const m=curMatches.find(m=>m.id===mid);if(m){m.score1=null;m.score2=null;}
+  renderRounds();
+}
+
+// ── MEMBERS ──
+async function renderMgmt(){
+  const reg=members.filter(m=>m.type==='regular'&&m.active);
+  const gst=members.filter(m=>m.type==='guest'&&m.active);
+  document.getElementById('regCnt').textContent=reg.length;
+  document.getElementById('gstCnt').textContent=gst.length;
+  // 먼저 빈 상태로 렌더 후 랭킹 캐시 로드
+  document.getElementById('regList').innerHTML=renderMItems(reg);
+  document.getElementById('gstList').innerHTML=renderMItems(gst);
+  // 랭킹 비동기 로드 후 재렌더
+  await loadMemberRankCache();
+  document.getElementById('regList').innerHTML=renderMItems(reg);
+}
+function getMemberRanks(pid){
+  // 분기/반기/연간 랭킹 계산 (이미 fetchMatchesInRange는 async라 동기로 미리 계산된 값 사용)
+  // memberRankCache에서 가져옴
+  return memberRankCache[pid]||{q:'-',h:'-',y:'-'};
+}
+
+let memberRankCache={};
+
+async function loadMemberRankCache(){
+  const now=new Date(),y=now.getFullYear(),mo=now.getMonth();
+  const ranges={
+    q:{s:new Date(y,Math.floor(mo/3)*3,1).toISOString().split('T')[0],e:now.toISOString().split('T')[0]},
+    h:{s:new Date(y,mo<6?0:6,1).toISOString().split('T')[0],e:now.toISOString().split('T')[0]},
+    yr:{s:new Date(y,0,1).toISOString().split('T')[0],e:now.toISOString().split('T')[0]}
+  };
+  const allMembers=members.filter(m=>m.active&&m.type==='regular');
+  memberRankCache={};
+
+  for(const[key,range] of Object.entries(ranges)){
+    const ms=await fetchMatchesInRange(range.s,range.e);
+    const ranked=allMembers.map(p=>({id:p.id,...calcSt(ms,p.id)}))
+      .filter(p=>p.g>0).sort((a,b)=>b.wr-a.wr||b.g-a.g);
+    ranked.forEach((p,i)=>{
+      if(!memberRankCache[p.id])memberRankCache[p.id]={q:'-',h:'-',y:'-'};
+      if(key==='q')memberRankCache[p.id].q=i+1;
+      if(key==='h')memberRankCache[p.id].h=i+1;
+      if(key==='yr')memberRankCache[p.id].y=i+1;
+    });
+  }
+}
+
+function renderMItems(list){
+  if(!list.length)return`<div class="empty"><div class="empty-text">등록된 회원이 없습니다</div></div>`;
+  return list.map(p=>{
+    const ranks=getMemberRanks(p.id);
+    const ntrp=p.level||'-';
+    return`<div class="li" style="flex-direction:column;align-items:flex-start;padding:14px 18px;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;width:100%;">
+        <div class="av av-${p.gender}">${p.name[0]}</div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span style="font-size:15px;font-weight:600;">${p.name}</span>
+            <span style="font-size:12px;font-weight:700;color:var(--court);background:var(--court-bg);padding:2px 7px;border-radius:5px;">NTRP ${ntrp}</span>
+            ${p.is_admin?'<span class="badge" style="background:#FEF2F2;color:#DC2626;">관리자</span>':''}
+            ${p.type==='guest'?'<span class="badge" style="background:#F5F3FF;color:#7C3AED;">게스트</span>':''}
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${p.type==='guest'?'게스트 (1회성)':'PIN: '+'●'.repeat(p.pin?.length||4)}</div>
+        </div>
+        <div style="display:flex;gap:5px;">
+          <button class="btn btn-ghost btn-sm" onclick="openEditM_member('${p.id}')">수정</button>
+          <button class="btn btn-danger btn-sm" onclick="delM('${p.id}')">삭제</button>
+        </div>
+      </div>
+      ${p.type==='regular'?`<div style="display:flex;gap:8px;width:100%;padding-left:50px;">
+        <div style="flex:1;text-align:center;background:var(--bg);border-radius:8px;padding:5px 4px;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">분기</div>
+          <div style="font-size:14px;font-weight:700;color:${ranks.q<=3?'var(--amber)':'var(--text)'};">${ranks.q<10?ranks.q+'위':ranks.q==='-'?'-':ranks.q+'위'}</div>
+        </div>
+        <div style="flex:1;text-align:center;background:var(--bg);border-radius:8px;padding:5px 4px;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">반기</div>
+          <div style="font-size:14px;font-weight:700;color:${ranks.h<=3?'var(--amber)':'var(--text)'};">${ranks.h==='-'?'-':ranks.h+'위'}</div>
+        </div>
+        <div style="flex:1;text-align:center;background:var(--bg);border-radius:8px;padding:5px 4px;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">연간</div>
+          <div style="font-size:14px;font-weight:700;color:${ranks.y<=3?'var(--amber)':'var(--text)'};">${ranks.y==='-'?'-':ranks.y+'위'}</div>
+        </div>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+let editingMemberId=null;
+function openAddM(type){
+  editingMemberId=null;
+  nmType=type;nmG='M';nmL='2.0';
+  document.getElementById('mName').value='';document.getElementById('mPin').value='';
+  document.getElementById('addMTitle').textContent=type==='regular'?'정회원 추가':'게스트 추가';
+  document.getElementById('gM').classList.add('sel');document.getElementById('gF').classList.remove('sel');
+  document.querySelectorAll('#moAddM .tb[id^="ntrp"]').forEach(el=>el.classList.remove('sel'));
+  const defEl=document.getElementById('ntrp20');if(defEl)defEl.classList.add('sel');
+  document.getElementById('pinGroup').style.display=type==='guest'?'none':'block';
+  document.getElementById('guestSessGroup').style.display=type==='guest'?'block':'none';
+  if(type==='guest'){
+    const sel=document.getElementById('guestSessSelect');
+    sel.innerHTML='<option value="">세션 선택</option>';
+    sessions.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=fmtD(s.date);sel.appendChild(o);});
+  }
+  om('moAddM');
+}
+function openEditM_member(id){
+  const p=members.find(m=>m.id===id);if(!p)return;
+  editingMemberId=id;
+  nmType=p.type;nmG=p.gender;nmL=p.level||'2.0';
+  document.getElementById('addMTitle').textContent='회원 정보 수정';
+  document.getElementById('mName').value=p.name;
+  document.getElementById('mPin').value=p.pin||'';
+  document.getElementById('gM').classList.toggle('sel',p.gender==='M');
+  document.getElementById('gF').classList.toggle('sel',p.gender==='F');
+  document.querySelectorAll('#moAddM .tb[id^="ntrp"]').forEach(el=>el.classList.remove('sel'));
+  const eid='ntrp'+String(p.level||'2.0').replace('.','');
+  const el=document.getElementById(eid);if(el)el.classList.add('sel');
+  document.getElementById('pinGroup').style.display=p.type==='guest'?'none':'block';
+  document.getElementById('guestSessGroup').style.display='none';
+  om('moAddM');
+}
+function selG(g){nmG=g;document.getElementById('gM').classList.toggle('sel',g==='M');document.getElementById('gF').classList.toggle('sel',g==='F');}
+function selL(l){
+  nmL=l;
+  // NTRP: id는 'ntrp'+level.replace('.','')
+  document.querySelectorAll('#moAddM .tb[id^="ntrp"]').forEach(el=>el.classList.remove('sel'));
+  const eid='ntrp'+String(l).replace('.','');
+  const el=document.getElementById(eid);
+  if(el)el.classList.add('sel');
+}
+async function saveM(){
+  const name=document.getElementById('mName').value.trim();
+  if(!name){toast('이름을 입력하세요');return;}
+
+  if(editingMemberId){
+    // 수정 모드
+    const upd={name,gender:nmG,level:nmL};
+    if(nmType==='regular'){
+      const pin=document.getElementById('mPin').value.trim();
+      if(pin&&pin.length>=4)upd.pin=pin;
+    }
+    ld(true);
+    const{error}=await db.from('members').update(upd).eq('id',editingMemberId);
+    ld(false);
+    if(error){toast('오류: '+error.message);return;}
+    const idx=members.findIndex(m=>m.id===editingMemberId);
+    if(idx>=0)members[idx]={...members[idx],...upd};
+    // pinSel 이름 업데이트
+    const opt=document.querySelector(`#pinSel option[value="${editingMemberId}"]`);
+    if(opt)opt.textContent=name+(members[idx]?.is_admin?' 👑':'');
+    cm('moAddM');renderMgmt();toast(`✅ ${name} 수정 완료`);
+    return;
+  }
+
+  // 추가 모드
+  let ins={name,gender:nmG,level:nmL,type:nmType,active:true,is_admin:false};
+  if(nmType==='regular'){
+    const pin=document.getElementById('mPin').value.trim();
+    if(!pin||pin.length<4){toast('PIN 4자리를 입력하세요');return;}
+    ins.pin=pin;
+  }else{
+    const sid=document.getElementById('guestSessSelect').value;
+    if(!sid){toast('세션을 선택하세요');return;}
+    ins.guest_session_id=sid;ins.pin='0000';
+  }
+  ld(true);
+  const{data,error}=await db.from('members').insert(ins).select().single();
+  ld(false);
+  if(error){toast('오류: '+error.message);return;}
+  members.push(data);
+  if(nmType==='regular'){const sel=document.getElementById('pinSel');const o=document.createElement('option');o.value=data.id;o.textContent=data.name;sel.appendChild(o);}
+  cm('moAddM');renderMgmt();if(nmType==='guest'&&curSess)renderAtt();toast(`✅ ${name} 추가 완료`);
+}
+async function delM(id){
+  if(!confirm('삭제하시겠습니까?'))return;
+  ld(true);await db.from('members').update({active:false}).eq('id',id);ld(false);
+  members=members.filter(m=>m.id!==id);renderMgmt();
+}
+
+// ── HOME ──
+async function renderHome(){
+  ld(true);
+  const{data}=await db.from('sessions').select('*').order('date',{ascending:false}).limit(5);
+  ld(false);
+  const list=document.getElementById('homeList');
+  if(!data||!data.length){list.innerHTML=`<div class="empty"><div class="empty-icon">🎾</div><div class="empty-text">게임 기록이 없습니다</div></div>`;return;}
+  list.innerHTML=data.map(s=>`<div class="card" style="cursor:pointer;" onclick="viewSess('${s.id}')">
+    <div class="card-header">
+      <div><div style="font-size:15px;font-weight:700;">${fmtD(s.date)}</div><div style="font-size:12px;color:var(--text2);margin-top:2px;">${s.courts}코트 · ${s.rounds}R</div></div>
+      <span style="color:var(--text3);font-size:20px;">›</span>
+    </div>
+  </div>`).join('');
+}
+async function viewSess(sid){
+  if(!sessions.length){const{data}=await db.from('sessions').select('*').order('date',{ascending:false});sessions=data||[];}
+  curSess=sessions.find(s=>s.id===sid)||{id:sid};
+  ld(true);
+  const[{data:att},{data:mat}]=await Promise.all([
+    db.from('attendances').select('*,slot:time_slot_id(*)').eq('session_id',sid),
+    db.from('matches').select('*').eq('session_id',sid).order('round').order('court')
+  ]);
+  curAtt=att||[];curMatches=mat||[];ld(false);
+  document.getElementById('sessSelect').value=sid;
+  document.getElementById('schedSub').textContent=fmtD(curSess.date);
+  document.getElementById('schedNone').style.display='none';
+  document.getElementById('schedBody').style.display='block';
+  renderAtt();renderRounds();sp('schedule');
+}
+
+// ── STATS ──
+function calcSt(matches,pid){
+  let w=0,l=0,g=0;
+  matches.forEach(m=>{
+    const i1=[m.team1_p1,m.team1_p2].includes(pid);
+    const i2=[m.team2_p1,m.team2_p2].includes(pid);
+    if(!i1&&!i2)return;g++;
+    if(i1&&m.score1>m.score2)w++;else if(i2&&m.score2>m.score1)w++;else l++;
+  });
+  return{w,l,g,wr:g>0?Math.round(w/g*100):0};
+}
+function calcPairs(matches,pid){
+  const pairs={};
+  matches.forEach(m=>{
+    const i1=[m.team1_p1,m.team1_p2].includes(pid);
+    const i2=[m.team2_p1,m.team2_p2].includes(pid);
+    if(!i1&&!i2)return;
+    const tm=i1?[m.team1_p1,m.team1_p2]:[m.team2_p1,m.team2_p2];
+    const win=i1?m.score1>m.score2:m.score2>m.score1;
+    const pt=tm.find(id=>id&&id!==pid);if(!pt)return;
+    if(!pairs[pt])pairs[pt]={id:pt,w:0,g:0};pairs[pt].g++;if(win)pairs[pt].w++;
+  });
+  return Object.values(pairs).map(p=>({...p,wr:Math.round(p.w/p.g*100)}));
+}
+
+// ── RANKING ──
+// 랭킹 쿼리: sessions 테이블 따로 조회 후 매칭
+async function fetchMatchesInRange(s,e){
+  const{data:sessList}=await db.from('sessions').select('id,date').gte('date',s).lte('date',e);
+  if(!sessList||!sessList.length)return[];
+  const ids=sessList.map(x=>x.id);
+  // score1 NOT NULL — use filter after fetch to avoid Supabase null filter quirks
+  const{data:ms}=await db.from('matches').select('*').in('session_id',ids);
+  const scored=(ms||[]).filter(m=>m.score1!==null&&m.score2!==null);
+  return scored.map(m=>{const sess=sessList.find(x=>x.id===m.session_id);return{...m,sessionDate:sess?.date};});
+}
+
+async function renderRanking(){
+  const{s,e}=getRange(curRP);ld(true);
+  const ms=await fetchMatchesInRange(s,e);ld(false);
+  const lbl={quarter:'분기',half:'반기',year:'연간',all:'전체'};
+  document.getElementById('rankLabel').textContent=lbl[curRP]+' 랭킹';
+  const ranked=members.filter(m=>m.active&&m.type==='regular').map(p=>({...p,...calcSt(ms,p.id)})).filter(p=>p.g>0).sort((a,b)=>b.wr-a.wr||b.g-a.g);
+  document.getElementById('rankSum').innerHTML=`<div class="stat-box"><div class="sv g">${ms.length}</div><div class="sl">게임 수</div></div><div class="stat-box"><div class="sv">${ranked.length}</div><div class="sl">활성 선수</div></div>`;
+  const rc=['r1','r2','r3'];
+  document.getElementById('rankList').innerHTML=ranked.length
+    ?ranked.map((p,i)=>`<div class="ri"><div class="rn ${rc[i]||''}">${i+1}</div><div class="rinfo"><div class="rnm">${p.name}</div><div class="rst">${p.w}승 ${p.l}패 · ${p.g}게임</div><div class="pb" style="margin-top:5px;"><div class="pbf" style="width:${p.wr}%"></div></div></div><div class="rr">${p.wr}%</div></div>`).join('')
+    :`<div class="empty"><div class="empty-text">기록이 없습니다</div></div>`;
+}
+function switchRP(p,el){curRP=p;document.querySelectorAll('#page-ranking .pb2').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderRanking();}
+
+// ── MYPAGE ──
+async function renderMyPage(){
+  if(!CU)return;
+  const{s,e}=getRange(curMP);ld(true);
+  const ms=await fetchMatchesInRange(s,e);ld(false);
+  const myMs=ms.filter(m=>[m.team1_p1,m.team1_p2,m.team2_p1,m.team2_p2].includes(CU.id));
+  const st=calcSt(myMs,CU.id);
+  document.getElementById('myHero').innerHTML=`<div class="my-name">${CU.name}</div><div class="my-meta">${CU.gender==='M'?'남성':'여성'}</div><div class="my-sr"><div class="my-sb"><div class="my-sv">${st.w}</div><div class="my-sl">승</div></div><div class="my-sb"><div class="my-sv">${st.l}</div><div class="my-sl">패</div></div><div class="my-sb"><div class="my-sv">${st.g}</div><div class="my-sl">게임</div></div><div class="my-sb"><div class="my-sv">${st.wr}%</div><div class="my-sl">승률</div></div></div>`;
+  const allSt=members.filter(m=>m.active&&m.type==='regular').map(p=>({id:p.id,...calcSt(ms,p.id)})).filter(p=>p.g>0).sort((a,b)=>b.wr-a.wr);
+  const myRank=allSt.findIndex(p=>p.id===CU.id)+1;
+  const ps=calcPairs(myMs,CU.id);
+  const best=[...ps].sort((a,b)=>b.wr-a.wr).slice(0,3);
+  const worst=[...ps].sort((a,b)=>a.wr-b.wr).slice(0,3);
+  const hist=myMs.slice().sort((a,b)=>(b.sessionDate||'').localeCompare(a.sessionDate||'')).slice(0,10);
+  const lbl={quarter:'분기',half:'반기',year:'연간',all:'전체'};
+  document.getElementById('myContent').innerHTML=`
+    <div style="padding:0 20px 10px;">
+      <div class="stat-row">
+        <div class="stat-box"><div class="sv g">${st.w}</div><div class="sl">${lbl[curMP]} 승</div></div>
+        <div class="stat-box"><div class="sv r">${st.l}</div><div class="sl">패</div></div>
+        <div class="stat-box"><div class="sv">${myRank||'-'}</div><div class="sl">현재 순위</div></div>
+        <div class="stat-box"><div class="sv g">${st.wr}</div><div class="sl">승률%</div></div>
+      </div>
+    </div>
+    ${best.length?`<div class="card" style="margin:0 20px 10px;"><div class="card-header"><div class="card-title">🏆 최고의 페어</div></div>${best.map((p,i)=>{const pl=gP(p.id);return pl?`<div class="pair-item"><div class="pr">${['🥇','🥈','🥉'][i]}</div><div class="pi"><div class="pn">${pl.name}</div><div class="ps">${p.w}승 ${p.g-p.w}패 · ${p.g}게임</div></div><div class="prate good">${p.wr}%</div></div>`:''}).join('')}</div>`:''}
+    ${worst.length?`<div class="card" style="margin:0 20px 10px;"><div class="card-header"><div class="card-title">😅 최악의 페어</div></div>${worst.map((p,i)=>{const pl=gP(p.id);return pl?`<div class="pair-item"><div class="pr">${['😭','😢','😥'][i]}</div><div class="pi"><div class="pn">${pl.name}</div><div class="ps">${p.w}승 ${p.g-p.w}패 · ${p.g}게임</div></div><div class="prate bad">${p.wr}%</div></div>`:''}).join('')}</div>`:''}
+    ${hist.length?`<div class="card" style="margin:0 20px 10px;"><div class="card-header"><div class="card-title">최근 게임 이력</div></div>${hist.map(m=>{const i1=[m.team1_p1,m.team1_p2].includes(CU.id);const ms2=i1?m.score1:m.score2;const os=i1?m.score2:m.score1;const res=ms2>os?'win':ms2<os?'lose':'draw';const lb={win:'WIN',lose:'LOSE',draw:'DRAW'};const t1=[m.team1_p1,m.team1_p2].filter(Boolean).map(id=>gP(id)?.name||'?');const t2=[m.team2_p1,m.team2_p2].filter(Boolean).map(id=>gP(id)?.name||'?');return`<div class="li" style="cursor:default;"><div style="flex:1;"><div style="font-size:12px;color:var(--text2);">${fmtD(m.sessionDate)} R${m.round}</div><div style="font-size:13px;font-weight:600;margin-top:2px;">${t1.join('+')} vs ${t2.join('+')}</div></div><div style="text-align:right;"><span class="badge badge-${res}">${lb[res]}</span><div style="font-size:14px;font-weight:700;margin-top:3px;">${ms2}:${os}</div></div></div>`;}).join('')}</div>`:''}`;
+}
+function switchMP(p,el){curMP=p;document.querySelectorAll('#page-mypage .pb2').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderMyPage();}
+
+// ── SETUP LIST (설정 페이지) ──
+function renderSetupListPage(){
+  document.getElementById('setupCount').textContent=`(${setups.length}/5)`;
+  const list=document.getElementById('setupList');
+  if(!setups.length){
+    list.innerHTML=`<div class="empty"><div class="empty-text">저장된 셋업이 없습니다<br><span style="font-size:13px;color:var(--text3);">새 세션 만들기에서 셋업을 저장할 수 있어요</span></div></div>`;
+    return;
+  }
+  list.innerHTML=setups.map(s=>{
+    let rts=[];try{rts=JSON.parse(s.round_times||'[]');}catch{}
+    const timeStr=rts.length?`${rts[0].s}~${rts[rts.length-1].e}`:'';
+    const courts=(s.court_names||[]).join(', ');
+    return`<div class="li">
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;">${s.name}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px;">${s.rounds}R · ${timeStr} · ${courts}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="delSetup('${s.id}')">삭제</button>
+    </div>`;
+  }).join('');
+}
+
+async function delSetup(id){
+  if(!confirm('셋업을 삭제할까요?'))return;
+  ld(true);await db.from('session_setups').delete().eq('id',id);ld(false);
+  setups=setups.filter(s=>s.id!==id);
+  renderSetupListPage();renderSetupSelect();
+}
+
+// ── SLOTS ──
+function renderSlots(){
+  const list=document.getElementById('slotList');
+  if(!slots.length){list.innerHTML=`<div class="empty"><div class="empty-text">시간대가 없습니다</div></div>`;return;}
+  list.innerHTML=slots.map(s=>`<div class="li">
+    <div style="width:12px;height:12px;border-radius:50%;background:${s.hex_color};flex-shrink:0;"></div>
+    <div style="flex:1;"><div style="font-size:14px;font-weight:600;">${s.label}</div><div style="font-size:12px;color:var(--text2);">${s.start_time}~${s.end_time}</div></div>
+    <button class="btn btn-ghost btn-sm" onclick="openEditSlot('${s.id}')">수정</button>
+    <button class="btn btn-danger btn-sm" onclick="delSlot('${s.id}')">삭제</button>
+  </div>`).join('');
+}
+function renderCS(sel){document.getElementById('csWrap').innerHTML=COLORS.map(c=>`<div class="cs${c===sel?' sel':''}" style="background:${c};" onclick="selSwatch('${c}')"></div>`).join('');document.getElementById('slotColor').value=sel||'#3B82F6';}
+function selSwatch(c){document.getElementById('slotColor').value=c;document.querySelectorAll('.cs').forEach(s=>s.classList.toggle('sel',s.style.background===c));}
+function openAddSlot(){editSlotId=null;document.getElementById('slotTitle').textContent='시간대 추가';document.getElementById('slotLabel').value='';document.getElementById('slotStart').value='';document.getElementById('slotEnd').value='';renderCS('#3B82F6');om('moSlot');}
+function openEditSlot(id){const s=slots.find(s=>s.id===id);if(!s)return;editSlotId=id;document.getElementById('slotTitle').textContent='시간대 수정';document.getElementById('slotLabel').value=s.label;document.getElementById('slotStart').value=s.start_time;document.getElementById('slotEnd').value=s.end_time;renderCS(s.hex_color);om('moSlot');}
+async function saveSlot(){
+  const label=document.getElementById('slotLabel').value.trim();
+  const start=document.getElementById('slotStart').value;
+  const end=document.getElementById('slotEnd').value;
+  const color=document.getElementById('slotColor').value;
+  if(!label||!start||!end){toast('모두 입력하세요');return;}
+  ld(true);
+  if(editSlotId){
+    await db.from('time_slots').update({label,start_time:start,end_time:end,hex_color:color,color_name:label}).eq('id',editSlotId);
+    const idx=slots.findIndex(s=>s.id===editSlotId);if(idx>=0)slots[idx]={...slots[idx],label,start_time:start,end_time:end,hex_color:color};
+  }else{
+    const{data}=await db.from('time_slots').insert({label,start_time:start,end_time:end,hex_color:color,color_name:label,sort_order:slots.length+1,active:true}).select().single();
+    if(data)slots.push(data);
+  }
+  ld(false);cm('moSlot');renderSlots();toast('✅ 저장 완료');
+}
+async function delSlot(id){
+  if(!confirm('삭제하시겠습니까?'))return;
+  await db.from('time_slots').update({active:false}).eq('id',id);
+  slots=slots.filter(s=>s.id!==id);renderSlots();
+}
+
+// ── COURTS ──
+function renderCourtList(){
+  const list=document.getElementById('courtList');
+  if(!courts.length){list.innerHTML=`<div class="empty"><div class="empty-text">등록된 코트가 없습니다</div></div>`;return;}
+  list.innerHTML=courts.map(c=>`<div class="li">
+    <div style="flex:1;font-size:14px;font-weight:600;">${c.name}</div>
+    <button class="btn btn-ghost btn-sm" onclick="openEditCourt('${c.id}')">수정</button>
+    <button class="btn btn-danger btn-sm" onclick="delCourt('${c.id}')">삭제</button>
+  </div>`).join('');
+}
+function openAddCourt(){editCourtId=null;document.getElementById('courtTitle').textContent='코트 추가';document.getElementById('courtName').value='';om('moCourt');}
+function openEditCourt(id){const c=courts.find(c=>c.id===id);if(!c)return;editCourtId=id;document.getElementById('courtTitle').textContent='코트 수정';document.getElementById('courtName').value=c.name;om('moCourt');}
+async function saveCourt(){
+  const name=document.getElementById('courtName').value.trim();
+  if(!name){toast('코트 이름을 입력하세요');return;}
+  ld(true);
+  if(editCourtId){
+    await db.from('courts').update({name}).eq('id',editCourtId);
+    const idx=courts.findIndex(c=>c.id===editCourtId);if(idx>=0)courts[idx].name=name;
+  }else{
+    const{data}=await db.from('courts').insert({name,sort_order:courts.length+1,active:true}).select().single();
+    if(data)courts.push(data);
+  }
+  ld(false);cm('moCourt');renderCourtList();toast('✅ 저장 완료');
+}
+async function delCourt(id){
+  if(!confirm('삭제하시겠습니까?'))return;
+  await db.from('courts').update({active:false}).eq('id',id);
+  courts=courts.filter(c=>c.id!==id);renderCourtList();
+}
+
+// sessions 테이블에 round_times 컬럼 없을 경우 대비
+document.querySelectorAll('.mo').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
+init();
+</script>
+</body>
+</html>
