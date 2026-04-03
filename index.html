@@ -560,7 +560,10 @@ async function init(){
   }catch(e){console.error(e);}
   ld(false);
   const sel=document.getElementById('pinSel');
-  members.filter(m=>m.active&&m.type==='regular').forEach(m=>{
+  // 관리자 먼저, 나머지는 이름순
+  const admins=members.filter(m=>m.active&&m.type==='regular'&&m.is_admin);
+  const regulars=members.filter(m=>m.active&&m.type==='regular'&&!m.is_admin);
+  [...admins,...regulars].forEach(m=>{
     const o=document.createElement('option');o.value=m.id;o.textContent=m.name+(m.is_admin?' 👑':'');sel.appendChild(o);
   });
   document.getElementById('pinScreen').classList.add('active');
