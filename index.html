@@ -1088,24 +1088,30 @@ function canPlayRound(memberId,roundNum){
 
 async function saveAllScores(){
   if(!curSess){toast('세션을 선택하세요');return;}
-  // 현재 화면의 모든 점수 입력창을 읽어서 저장
+  ld(true);
+  // 점수 입력창에서 값 읽기 (미입력 포함 전체 강제 저장)
   const updates=[];
   curMatches.forEach(m=>{
     const el1=document.getElementById('sc1-'+m.id);
     const el2=document.getElementById('sc2-'+m.id);
-    if(!el1||!el2)return; // 이미 점수 있는 경기는 인라인 입력창 없음
-    const s1=parseInt(el1.value),s2=parseInt(el2.value);
-    if(isNaN(s1)||isNaN(s2))return;
-    if(s1===m.score1&&s2===m.score2)return; // 변경 없음
-    m.score1=s1;m.score2=s2;
-    updates.push(db.from('matches').update({score1:s1,score2:s2}).eq('id',m.id));
+    let s1=m.score1,s2=m.score2;
+    if(el1&&el2){
+      const v1=parseInt(el1.value),v2=parseInt(el2.value);
+      if(!isNaN(v1)&&!isNaN(v2)){s1=v1;s2=v2;}
+    }
+    // 점수가 있으면 무조건 덮어씌우기
+    if(s1!==null&&s2!==null){
+      m.score1=s1;m.score2=s2;
+      updates.push(db.from('matches').update({score1:s1,score2:s2}).eq('id',m.id));
+    } else {
+      // 점수 없는 경기는 null로 초기화
+      updates.push(db.from('matches').update({score1:null,score2:null}).eq('id',m.id));
+    }
   });
-  if(!updates.length){toast('저장할 점수가 없습니다');return;}
-  ld(true);
   await Promise.all(updates);
   ld(false);
   renderRounds();
-  toast(`✅ ${updates.length}개 점수 저장 완료`);
+  toast(`✅ 전체 ${updates.length}경기 저장 완료`);
 }
 
 async function genSched(){
