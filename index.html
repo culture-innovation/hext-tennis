@@ -1219,7 +1219,12 @@ function buildMatches(pids,rounds,numCourts){
     };
 
     const ranked=shuffle(avail).map(pid=>({pid,score:scoreOf(pid)})).sort((a,b)=>a.score-b.score);
-    const selected=ranked.slice(0,slotsNeeded).map(x=>x.pid);
+    // 중복 없이 unique ID만 selected에 포함
+    const seen=new Set();
+    const selected=[];
+    for(const{pid} of ranked){
+      if(!seen.has(pid)&&selected.length<slotsNeeded){seen.add(pid);selected.push(pid);}
+    }
     const resting=avail.filter(p=>!selected.includes(p));
 
     const pool_all=shuffle(selected);
@@ -1346,42 +1351,47 @@ function renderRounds(){
   const rds={};curMatches.forEach(m=>{if(!rds[m.round])rds[m.round]=[];rds[m.round].push(m);});
   const roundsHtml=Object.entries(rds).map(([r,ms])=>{
     const restIds=getRoundResting(Number(r));
-    // 휴식자: 드래그 가능한 카드로 표시
-    const restHtml=restIds.length>0
-      ?`<div style="border-top:1px solid var(--border);padding:10px 12px;background:var(--amber-bg);">
-          <div style="font-size:11px;font-weight:700;color:var(--amber);letter-spacing:.4px;margin-bottom:6px;">휴식 (${restIds.length}명)</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;">
-            ${restIds.map(id=>{
-              const p=gP(id);const col=getSlotColor(id);
-              if(!p)return'';
-              return CU?.is_admin
-                ?`<div class="pc rest-card" draggable="true"
-                    data-mid="REST" data-field="rest-${r}-${id}" data-member="${id}"
-                    ondragstart="pcStart(event)" ondragend="pcEnd(event)"
-                    ondragover="pcOver(event)" ondragleave="pcLeave(event)" ondrop="pcDrop(event)"
-                    style="background:var(--white);border-color:var(--amber);">
-                    <div class="pdot" style="background:${col};"></div>
-                    <span class="pname" style="color:var(--amber);">${p.name}</span>
-                    <span class="grip">⠿</span>
-                  </div>`
-                :`<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:var(--white);border-radius:8px;font-size:12px;font-weight:600;color:var(--amber);">
-                    <div style="width:7px;height:7px;border-radius:50%;background:${col};"></div>${p.name}
-                  </div>`;
-            }).join('')}
-          </div>
-        </div>`
-      :'';
+    // 휴식존: 항상 표시 (빈 경우에도)
+    const restCards=restIds.map(id=>{
+      const p=gP(id);const col=getSlotColor(id);
+      if(!p)return'';
+      return CU?.is_admin
+        ?`<div class="pc rest-card" data-mid="REST" data-field="rest-${r}-${id}" data-member="${id}"
+            style="background:var(--white);border-color:var(--amber);">
+            <div class="pdot" style="background:${col};"></div>
+            <span class="pname" style="color:var(--amber);">${p.name}</span>
+            <span class="grip">⠿</span>
+          </div>`
+        :`<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:var(--white);border-radius:8px;font-size:12px;font-weight:600;color:var(--amber);">
+            <div style="width:7px;height:7px;border-radius:50%;background:${col};"></div>${p.name}
+          </div>`;
+    }).join('');
+    const restHtml=`<div style="padding:8px 12px 10px;background:var(--amber-bg);border-top:1px solid #fde68a;border-radius:0 0 10px 10px;">
+      <div style="font-size:10px;font-weight:700;color:var(--amber);letter-spacing:.4px;margin-bottom:${restIds.length?'6px':'0'};">
+        휴식${restIds.length?` (${restIds.length}명)`:''}
+      </div>
+      ${restIds.length
+        ?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${restCards}</div>`
+        :`<div style="font-size:11px;color:#b45309;opacity:.6;">없음</div>`
+      }
+    </div>`;
     return`<div class="round-section">
       <div class="round-head">
         <span class="round-label">R${r} 라운드</span>
         <button class="round-time-btn" onclick="${CU?.is_admin?`openRoundTimeEdit(${r})`:'void(0)'}">${getRoundTimeStr(Number(r))}</button>
       </div>
-      <div class="round-body">${ms.map(m=>renderMC(m)).join('')}</div>
+      <div style="background:var(--white);border:1px solid var(--border);border-bottom:none;padding:10px 12px;">
+        ${ms.map(m=>renderMC(m)).join('')}
+      </div>
       ${restHtml}
     </div>`;
   }).join('');
 
   wrap.innerHTML=statsHtml+roundsHtml;
+  // 터치+마우스 드래그 초기화
+  if(CU?.is_admin){
+    document.querySelectorAll('.pc,.rest-card').forEach(el=>initDrag(el));
+  }
 }
 
 function renderMC(m){
@@ -1391,15 +1401,13 @@ function renderMC(m){
     if(!memberId){
       return CU?.is_admin
         ?`<div class="empty-slot" id="es-${m.id}-${field}" data-mid="${m.id}" data-field="${field}"
-            ondragover="esOver(event)" ondragleave="esLeave(event)" ondrop="esDrop(event)">빈 자리</div>`
+>빈 자리</div>`
         :`<div class="empty-slot">빈 자리</div>`;
     }
     const p=gP(memberId);const col=getSlotColor(memberId);
     return`<div class="pc" id="pc-${m.id}-${field}"
       data-mid="${m.id}" data-field="${field}" data-member="${memberId}"
-      draggable="${CU?.is_admin}"
-      ondragstart="pcStart(event)" ondragend="pcEnd(event)"
-      ondragover="pcOver(event)" ondragleave="pcLeave(event)" ondrop="pcDrop(event)">
+>
       <div class="pdot" style="background:${col};"></div>
       <span class="pname">${p?p.name:'?'}</span>
       ${CU?.is_admin?'<span class="grip">⠿</span>':''}
@@ -1439,34 +1447,107 @@ function renderMC(m){
 }
 
 // ── DRAG & DROP ──
-function pcStart(e){
-  const el=e.currentTarget;
+// ── 터치+마우스 통합 드래그앤드롭 ──
+let touchDragEl=null,touchClone=null,touchOffX=0,touchOffY=0;
+
+function initDrag(el){
+  // 마우스
+  el.addEventListener('mousedown',dragMouseDown,{passive:false});
+  // 터치
+  el.addEventListener('touchstart',dragTouchStart,{passive:false});
+}
+
+function dragMouseDown(e){
+  if(!CU?.is_admin)return;
+  e.preventDefault();
+  startDrag(e.currentTarget,e.clientX,e.clientY);
+  document.addEventListener('mousemove',dragMouseMove);
+  document.addEventListener('mouseup',dragMouseUp);
+}
+function dragTouchStart(e){
+  if(!CU?.is_admin)return;
+  e.preventDefault();
+  const t=e.touches[0];
+  startDrag(e.currentTarget,t.clientX,t.clientY);
+  document.addEventListener('touchmove',dragTouchMove,{passive:false});
+  document.addEventListener('touchend',dragTouchEnd);
+}
+
+function startDrag(el,cx,cy){
+  touchDragEl=el;
   dragSrc={matchId:el.dataset.mid,field:el.dataset.field,memberId:el.dataset.member};
+  const r=el.getBoundingClientRect();
+  touchOffX=cx-r.left; touchOffY=cy-r.top;
+  // 클론 생성
+  touchClone=el.cloneNode(true);
+  touchClone.style.cssText=`position:fixed;z-index:9999;width:${r.width}px;opacity:.85;pointer-events:none;left:${r.left}px;top:${r.top}px;margin:0;box-shadow:0 4px 16px rgba(0,0,0,.2);`;
+  document.body.appendChild(touchClone);
   el.classList.add('is-dragging');
-  e.dataTransfer.effectAllowed='move';
-  e.dataTransfer.setData('text/plain',el.dataset.member);
 }
-function pcEnd(e){
-  e.currentTarget.classList.remove('is-dragging');
+
+function dragMouseMove(e){moveClone(e.clientX,e.clientY);}
+function dragTouchMove(e){e.preventDefault();const t=e.touches[0];moveClone(t.clientX,t.clientY);}
+
+function moveClone(cx,cy){
+  if(!touchClone)return;
+  touchClone.style.left=(cx-touchOffX)+'px';
+  touchClone.style.top=(cy-touchOffY)+'px';
+  // 하이라이트 타겟
   document.querySelectorAll('.drag-over-p').forEach(el=>el.classList.remove('drag-over-p'));
+  touchClone.style.display='none';
+  const el=document.elementFromPoint(cx,cy);
+  touchClone.style.display='';
+  const target=el?.closest('.pc,.empty-slot');
+  if(target)target.classList.add('drag-over-p');
 }
-function pcOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over-p');}
-function pcLeave(e){e.currentTarget.classList.remove('drag-over-p');}
-function pcDrop(e){
-  e.preventDefault();e.currentTarget.classList.remove('drag-over-p');
-  if(!dragSrc)return;
-  const tgt={matchId:e.currentTarget.dataset.mid,field:e.currentTarget.dataset.field,memberId:e.currentTarget.dataset.member};
-  if(dragSrc.matchId===tgt.matchId&&dragSrc.field===tgt.field){dragSrc=null;return;}
-  swapPlayers(dragSrc,tgt);dragSrc=null;
+
+function dragMouseUp(e){
+  document.removeEventListener('mousemove',dragMouseMove);
+  document.removeEventListener('mouseup',dragMouseUp);
+  finishDrag(e.clientX,e.clientY);
 }
-function esOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over-p');}
-function esLeave(e){e.currentTarget.classList.remove('drag-over-p');}
-function esDrop(e){
-  e.preventDefault();e.currentTarget.classList.remove('drag-over-p');
-  if(!dragSrc)return;
-  const tgt={matchId:e.currentTarget.dataset.mid,field:e.currentTarget.dataset.field,memberId:null};
-  swapPlayers(dragSrc,tgt);dragSrc=null;
+function dragTouchEnd(e){
+  document.removeEventListener('touchmove',dragTouchMove);
+  document.removeEventListener('touchend',dragTouchEnd);
+  const t=e.changedTouches[0];
+  finishDrag(t.clientX,t.clientY);
 }
+
+function finishDrag(cx,cy){
+  if(touchClone){touchClone.remove();touchClone=null;}
+  document.querySelectorAll('.drag-over-p').forEach(el=>el.classList.remove('drag-over-p'));
+  if(touchDragEl)touchDragEl.classList.remove('is-dragging');
+
+  if(!dragSrc){touchDragEl=null;return;}
+
+  // 드롭 타겟 찾기
+  const tmp=touchDragEl;
+  if(tmp)tmp.style.display='none'; // 본인 제외
+  const el=document.elementFromPoint(cx,cy);
+  if(tmp)tmp.style.display='';
+
+  const target=el?.closest('.pc,.empty-slot');
+  if(!target||target===touchDragEl){dragSrc=null;touchDragEl=null;return;}
+
+  const tgt={
+    matchId:target.dataset.mid,
+    field:target.dataset.field,
+    memberId:target.dataset.member||null
+  };
+  if(dragSrc.matchId===tgt.matchId&&dragSrc.field===tgt.field){dragSrc=null;touchDragEl=null;return;}
+  swapPlayers(dragSrc,tgt);
+  dragSrc=null;touchDragEl=null;
+}
+
+// 하위 호환 (HTML에서 inline으로 호출되는 것들 — 터치에선 안 쓰이지만 오류 방지)
+function pcStart(e){}
+function pcEnd(e){}
+function pcOver(e){e.preventDefault();}
+function pcLeave(e){}
+function pcDrop(e){e.preventDefault();}
+function esOver(e){e.preventDefault();}
+function esLeave(e){}
+function esDrop(e){e.preventDefault();}
 
 async function swapPlayers(src,tgt){
   // 휴식자 카드(matchId===REST)에서 드래그한 경우
