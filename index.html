@@ -315,8 +315,11 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);co
         <span style="font-size:13px;font-weight:600;color:var(--text2);">총 <span id="gstCnt">0</span>명</span>
         <button class="btn btn-secondary btn-sm" onclick="openAddM('guest')">+ 추가</button>
       </div>
-      <div style="padding:0 20px 10px;">
-        <select class="form-select" id="guestSessFilter" onchange="renderMgmt()" style="font-size:13px;">
+      <div style="padding:0 20px 10px;display:flex;gap:8px;">
+        <select class="form-select" id="guestYearFilter" onchange="updateGuestSessFilter()" style="font-size:13px;width:90px;flex-shrink:0;">
+          <option value="">전체</option>
+        </select>
+        <select class="form-select" id="guestSessFilter" onchange="renderMgmt()" style="font-size:13px;flex:1;">
           <option value="">전체 세션</option>
         </select>
       </div>
@@ -336,16 +339,23 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);co
   <div class="page" id="page-ranking">
     <div style="padding:16px 20px 10px;">
       <div style="font-size:18px;font-weight:700;margin-bottom:12px;">랭킹</div>
-      <div class="period-wrap" style="padding:0;margin-bottom:12px;">
-        <button class="pb2 active" onclick="switchRP('quarter',this)">분기</button>
-        <button class="pb2" onclick="switchRP('half',this)">반기</button>
-        <button class="pb2" onclick="switchRP('year',this)">연간</button>
-        <button class="pb2" onclick="switchRP('all',this)">전체</button>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <select class="form-select" id="rankYearSel" onchange="renderRanking()" style="flex:1;font-weight:600;"></select>
+        <select class="form-select" id="rankPeriodSel" onchange="renderRanking()" style="flex:1;font-weight:600;">
+          <option value="quarter">분기</option>
+          <option value="half">반기</option>
+          <option value="year" selected>연간</option>
+          <option value="all">전체</option>
+        </select>
+        <select class="form-select" id="rankTypeSel" onchange="renderRanking()" style="flex:1;font-weight:600;">
+          <option value="individual">개인랭킹</option>
+          <option value="pair">페어랭킹</option>
+        </select>
       </div>
       <div class="stat-row" id="rankSum" style="margin-bottom:10px;"></div>
     </div>
     <div class="card" style="margin:0 20px 10px;">
-      <div class="card-header"><div class="card-title" id="rankLabel">분기 랭킹</div></div>
+      <div class="card-header"><div class="card-title" id="rankLabel">2026년 개인 랭킹</div></div>
       <div id="rankList"></div>
     </div>
   </div>
@@ -364,9 +374,12 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);co
 
   <!-- RECORDS PAGE -->
   <div class="page" id="page-records">
-    <div style="padding:18px 20px 14px;background:var(--white);border-bottom:1px solid var(--border);">
-      <div style="font-size:18px;font-weight:700;letter-spacing:-.3px;">경기 기록</div>
-      <div style="font-size:13px;color:var(--text2);margin-top:2px;" id="recordsCount"></div>
+    <div style="padding:18px 20px 10px;background:var(--white);border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:18px;font-weight:700;letter-spacing:-.3px;">경기 기록</div>
+        <span style="font-size:13px;color:var(--text2);" id="recordsCount"></span>
+      </div>
+      <select class="form-select" id="recYearSel" onchange="renderRecords()" style="font-weight:600;"></select>
     </div>
     <div id="recordsList" style="padding:0 20px 10px;margin-top:10px;"></div>
   </div>
@@ -563,7 +576,7 @@ let pinBuf='',pinMid=null;
 let nmType='regular',nmG='M',nmL='2.0';
 let nsRounds=5,nsRoundTimes=[];
 let editSlotId=null,editCourtId=null,editRoundNum=null;
-let curRP='quarter',curMP='quarter';
+let curRP='quarter',curMP='quarter',curRankYear='',curMyYear='';
 let openMenu=null;
 // drag
 let dragSrc=null; // {matchId,field,memberId}
@@ -574,14 +587,31 @@ function om(id){document.getElementById(id).classList.add('open');}
 function cm(id){document.getElementById(id).classList.remove('open');}
 function fmtD(d){if(!d)return'';const dt=new Date(d+'T00:00:00');return`${dt.getMonth()+1}월 ${dt.getDate()}일 (${['일','월','화','수','목','금','토'][dt.getDay()]})`;}
 function gP(id){return members.find(m=>m.id===id);}
-function getRange(p){
-  const now=new Date(),y=now.getFullYear(),mo=now.getMonth();
+function getRange(p,yr){
+  const now=new Date();
+  const y=yr?parseInt(yr):now.getFullYear();
+  const mo=now.getFullYear()===y?now.getMonth():11; // 다른 연도면 연말 기준
+  const eDate=now.getFullYear()===y?now:new Date(y,11,31);
   let s;
   if(p==='quarter')s=new Date(y,Math.floor(mo/3)*3,1);
   else if(p==='half')s=new Date(y,mo<6?0:6,1);
   else if(p==='year')s=new Date(y,0,1);
   else s=new Date('2000-01-01');
-  return{s:s.toISOString().split('T')[0],e:now.toISOString().split('T')[0]};
+  return{s:s.toISOString().split('T')[0],e:eDate.toISOString().split('T')[0]};
+}
+function getPeriodLabel(p,yr){
+  const now=new Date();
+  const y=yr?parseInt(yr):now.getFullYear();
+  const mo=now.getFullYear()===y?now.getMonth():11;
+  if(p==='quarter')return`${y}년 ${Math.floor(mo/3)+1}분기`;
+  if(p==='half')return`${y}년 ${mo<6?'상':'하'}반기`;
+  if(p==='year')return`${y}년`;
+  return '전체';
+}
+function getAvailYears(){
+  const yrs=[...new Set(sessions.map(s=>s.date?.substring(0,4)).filter(Boolean))].sort((a,b)=>b-a);
+  if(!yrs.length)yrs.push(String(new Date().getFullYear()));
+  return yrs;
 }
 function addMins(t,m){const[h,mm]=t.split(':').map(Number);const tot=h*60+mm+m;return`${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;}
 
@@ -845,13 +875,25 @@ async function renderRecords(){
   const{data:sessList}=await db.from('sessions').select('*').order('date',{ascending:false});
   ld(false);
   sessions=sessList||[];
+
+  // 연도 드롭박스
+  const yrSel=document.getElementById('recYearSel');
+  if(yrSel){
+    const curYr=yrSel.value;
+    const yrs=[...new Set(sessions.map(s=>s.date?.substring(0,4)).filter(Boolean))].sort((a,b)=>b-a);
+    yrSel.innerHTML='<option value="">전체 연도</option>'+yrs.map(y=>`<option value="${y}">${y}년</option>`).join('');
+    if(curYr)yrSel.value=curYr;
+  }
+  const filterYr=yrSel?.value||'';
+  const filtered=sessions.filter(s=>!filterYr||s.date?.startsWith(filterYr));
+
   const list=document.getElementById('recordsList');
-  document.getElementById('recordsCount').textContent=`전체 ${sessions.length}회`;
-  if(!sessions.length){
-    list.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">저장된 경기 기록이 없습니다</div></div>`;
+  document.getElementById('recordsCount').textContent=`${filtered.length}회${filterYr?' ('+filterYr+'년)':''}`;
+  if(!filtered.length){
+    list.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">경기 기록이 없습니다</div></div>`;
     return;
   }
-  list.innerHTML=sessions.map(s=>{
+  list.innerHTML=filtered.map(s=>{
     const courtNames=(s.court_names||[]).join(' · ')||`${s.courts||1}코트`;
     return`<div class="card" style="cursor:pointer;margin-bottom:8px;" onclick="openSessDetail('${s.id}')">
       <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;">
@@ -917,7 +959,7 @@ async function openSessDetail(sid){
         const has=m.score1!==null&&m.score2!==null;
         const r1=has&&m.score1>m.score2?'win':has&&m.score1<m.score2?'lose':'draw';
         const r2=has&&m.score2>m.score1?'win':has&&m.score2<m.score1?'lose':'draw';
-        const lb={win:'WIN',lose:'LOSE',draw:'DRAW'};
+        const lb={win:'승',lose:'패',draw:'무'};
         return`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
           <div style="font-size:10px;font-weight:700;color:var(--court);margin-bottom:6px;">${cname}</div>
           <div style="display:flex;align-items:center;gap:8px;">
@@ -1507,7 +1549,7 @@ function renderMC(m){
   if(has){
     const r1=m.score1>m.score2?'win':m.score1<m.score2?'lose':'draw';
     const r2=m.score2>m.score1?'win':m.score2<m.score1?'lose':'draw';
-    const lb={win:'WIN',lose:'LOSE',draw:'DRAW'};
+    const lb={win:'승',lose:'패',draw:'무'};
     scoreHtml=`<div class="score-result" onclick="openScoreUser('${m.id}')" style="cursor:pointer;">
       <div class="score-box"><span class="badge badge-${r1}">${lb[r1]}</span><span class="snum">${m.score1}</span></div>
       <div class="ssep2">:</div>
@@ -1545,14 +1587,13 @@ function initDrag(el){
 
 function dragMouseDown(e){
   if(!CU?.is_admin)return;
-  e.preventDefault();
+  // onclick과 구분: mousedown만 드래그 준비, 실제 이동 후 활성화
   startDrag(e.currentTarget,e.clientX,e.clientY);
   document.addEventListener('mousemove',dragMouseMove);
   document.addEventListener('mouseup',dragMouseUp);
 }
 function dragTouchStart(e){
   if(!CU?.is_admin)return;
-  e.preventDefault();
   const t=e.touches[0];
   startDrag(e.currentTarget,t.clientX,t.clientY);
   document.addEventListener('touchmove',dragTouchMove,{passive:false});
@@ -1717,7 +1758,7 @@ function openPlayerCardMenu(matchId,field,memberId,roundNum){
     id!==memberId&&
     canPlayRound(id,roundNum)&&
     !roundPlayers.has(id)
-  );
+  ).sort((a,b)=>(gP(a)?.name||'').localeCompare(gP(b)?.name||'','ko'));
 
   document.getElementById('moPlayerCardBody').innerHTML=`
     <div style="margin-bottom:12px;">
@@ -1767,7 +1808,7 @@ function openSlotPick(matchId,field,roundNum){
       .flatMap(x=>[x.team1_p1,x.team1_p2,x.team2_p1,x.team2_p2].filter(Boolean))
   );
   const attIds=curAtt.map(a=>a.member_id);
-  const pickable=attIds.filter(id=>canPlayRound(id,roundNum)&&!roundPlayers.has(id));
+  const pickable=attIds.filter(id=>canPlayRound(id,roundNum)&&!roundPlayers.has(id)).sort((a,b)=>(gP(a)?.name||'').localeCompare(gP(b)?.name||'','ko'));
 
   document.getElementById('moSlotPickBody').innerHTML=pickable.length
     ?`<div style="display:flex;flex-direction:column;gap:6px;">
@@ -1860,26 +1901,46 @@ async function resetScore(mid){
 }
 
 // ── MEMBERS ──
+function updateGuestSessFilter(){
+  // 연도 변경 시 세션 목록 갱신 후 renderMgmt
+  renderMgmt();
+}
+
 async function renderMgmt(){
   const reg=members.filter(m=>m.type==='regular'&&m.active);
   const allGst=members.filter(m=>m.type==='guest'&&m.active);
 
-  // 게스트 세션 필터 드롭박스 업데이트
+  // 게스트 연도 필터 드롭박스
+  const gstYrSel=document.getElementById('guestYearFilter');
+  if(gstYrSel){
+    const curYr=gstYrSel.value;
+    const yrs=[...new Set(sessions.map(s=>s.date?.substring(0,4)).filter(Boolean))].sort((a,b)=>b-a);
+    gstYrSel.innerHTML='<option value="">전체</option>'+yrs.map(y=>`<option value="${y}">${y}년</option>`).join('');
+    if(curYr)gstYrSel.value=curYr;
+  }
+
+  // 게스트 세션 필터 드롭박스
   const gstSel=document.getElementById('guestSessFilter');
   if(gstSel){
     const curGstSess=gstSel.value;
+    const filterYrForSess=gstYrSel?.value||'';
+    const sessByYr=[...sessions].filter(s=>!filterYrForSess||s.date?.startsWith(filterYrForSess)).sort((a,b)=>b.date.localeCompare(a.date));
     gstSel.innerHTML='<option value="">전체 세션</option>';
-    [...sessions].sort((a,b)=>b.date.localeCompare(a.date)).forEach(s=>{
-      const o=document.createElement('option');o.value=s.id;o.textContent=fmtD(s.date);gstSel.appendChild(o);
-    });
-    if(curGstSess)gstSel.value=curGstSess;
+    sessByYr.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=fmtD(s.date);gstSel.appendChild(o);});
+    if(curGstSess&&sessByYr.find(s=>s.id===curGstSess))gstSel.value=curGstSess;
   }
 
   // 필터 적용
   const filterSessId=gstSel?gstSel.value:'';
-  const gst=filterSessId
-    ? allGst.filter(m=>m.guest_session_id===filterSessId)
-    : allGst;
+  const filterYr=gstYrSel?.value||'';
+  const gst=allGst.filter(m=>{
+    if(filterSessId)return m.guest_session_id===filterSessId;
+    if(filterYr){
+      const sess=sessions.find(s=>s.id===m.guest_session_id);
+      return sess?.date?.startsWith(filterYr);
+    }
+    return true;
+  });
 
   document.getElementById('regCnt').textContent=reg.length;
   document.getElementById('gstCnt').textContent=`${gst.length}${filterSessId?'/'+allGst.length:''}`;
@@ -2082,14 +2143,30 @@ async function viewSess(sid){
 
 // ── STATS ──
 function calcSt(matches,pid){
-  let w=0,l=0,g=0;
+  let w=0,l=0,d=0,g=0,setDiff=0;
   matches.forEach(m=>{
     const i1=[m.team1_p1,m.team1_p2].includes(pid);
     const i2=[m.team2_p1,m.team2_p2].includes(pid);
-    if(!i1&&!i2)return;g++;
-    if(i1&&m.score1>m.score2)w++;else if(i2&&m.score2>m.score1)w++;else l++;
+    if(!i1&&!i2)return;
+    g++;
+    if(i1){
+      setDiff+=(m.score1||0)-(m.score2||0);
+      if(m.score1>m.score2)w++;
+      else if(m.score1<m.score2)l++;
+      else d++;
+    }else{
+      setDiff+=(m.score2||0)-(m.score1||0);
+      if(m.score2>m.score1)w++;
+      else if(m.score2<m.score1)l++;
+      else d++;
+    }
   });
-  return{w,l,g,wr:g>0?Math.round(w/g*100):0};
+  // 승률: 무는 분모 제외 (승/결정경기)
+  const decisive=w+l;
+  const wr=decisive>0?Math.round(w/decisive*100):0;
+  // 포인트: 승5 무2 패1
+  const pts=w*5+d*2+l*1;
+  return{w,l,d,g,wr,setDiff,pts};
 }
 function calcPairs(matches,pid){
   const pairs={};
@@ -2118,45 +2195,129 @@ async function fetchMatchesInRange(s,e){
 }
 
 async function renderRanking(){
-  const{s,e}=getRange(curRP);ld(true);
-  const ms=await fetchMatchesInRange(s,e);ld(false);
-  const lbl={quarter:'분기',half:'반기',year:'연간',all:'전체'};
-  document.getElementById('rankLabel').textContent=lbl[curRP]+' 랭킹';
-  const ranked=members.filter(m=>m.active&&m.type==='regular').map(p=>({...p,...calcSt(ms,p.id)})).filter(p=>p.g>0).sort((a,b)=>b.wr-a.wr||b.g-a.g);
-  document.getElementById('rankSum').innerHTML=`<div class="stat-box"><div class="sv g">${ms.length}</div><div class="sl">게임 수</div></div><div class="stat-box"><div class="sv">${ranked.length}</div><div class="sl">활성 선수</div></div>`;
-  const rc=['r1','r2','r3'];
-  document.getElementById('rankList').innerHTML=ranked.length
-    ?`<table style="width:100%;border-collapse:collapse;font-size:13px;">
+  // 연도 드롭박스 초기화
+  const yrSel=document.getElementById('rankYearSel');
+  if(yrSel&&!yrSel.options.length){
+    getAvailYears().forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y+'년';yrSel.appendChild(o);});
+    yrSel.value=String(new Date().getFullYear());
+  }
+  const yr=yrSel?.value||String(new Date().getFullYear());
+  const period=document.getElementById('rankPeriodSel')?.value||'year';
+  const rankType=document.getElementById('rankTypeSel')?.value||'individual';
+
+  const{s,e}=getRange(period,yr);
+  ld(true);
+  const ms=await fetchMatchesInRange(s,e);
+  ld(false);
+
+  const periodLbl=getPeriodLabel(period,yr);
+  const typeLbl=rankType==='pair'?'페어':'개인';
+  document.getElementById('rankLabel').textContent=`${periodLbl} ${typeLbl} 랭킹`;
+  document.getElementById('rankSum').innerHTML=`<div class="stat-box"><div class="sv g">${ms.length}</div><div class="sl">게임 수</div></div><div class="stat-box"><div class="sv">${rankType==='pair'?'-':members.filter(m=>m.active&&m.type==='regular').filter(p=>calcSt(ms,p.id).g>0).length}</div><div class="sl">참가 선수</div></div>`;
+
+  if(rankType==='individual'){
+    // 정회원 전체 포함 (경기 없어도), 포인트 기준 정렬
+    const ranked=members.filter(m=>m.active&&m.type==='regular').map(p=>{
+      const st=calcSt(ms,p.id);
+      return{...p,...st};
+    }).sort((a,b)=>b.pts-a.pts||b.setDiff-a.setDiff||b.g-a.g);
+
+    const pointBasis=`<div style="display:flex;gap:10px;padding:8px 14px 10px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <span style="font-weight:700;color:var(--text3);">포인트 기준:</span>
+      <span>🏆 승 <b style="color:var(--court);">5점</b></span>
+      <span>🤝 무 <b style="color:var(--amber);">2점</b></span>
+      <span>❌ 패 <b style="color:var(--text2);">1점</b></span>
+      <span style="color:var(--text3);">· 동점 시 세트득실 차이</span>
+    </div>`;
+
+    document.getElementById('rankList').innerHTML=`${pointBasis}<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:320px;">
       <thead>
-        <tr style="border-bottom:2px solid var(--border);">
-          <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--text2);width:32px;">#</th>
-          <th style="padding:8px 6px;text-align:left;font-weight:700;color:var(--text2);">이름</th>
+        <tr style="border-bottom:2px solid var(--border);background:var(--bg);">
+          <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--text2);width:28px;">#</th>
+          <th style="padding:8px 10px;text-align:left;font-weight:700;color:var(--text2);">이름</th>
           <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--text2);">경기</th>
           <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--court);">승</th>
-          <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--text2);">무</th>
-          <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--red);">패</th>
+          <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--amber);">무</th>
+          <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--text2);">패</th>
           <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--text2);">승률</th>
+          <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--red);">POINT</th>
         </tr>
       </thead>
       <tbody>
         ${ranked.map((p,i)=>{
-          const draws=p.g-p.w-p.l;
-          const rnCls=['r1','r2','r3'][i]||'';
-          return`<tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:10px 6px;text-align:center;font-weight:700;color:${i===0?'#F59E0B':i===1?'#9CA3AF':i===2?'#B45309':'var(--text3)'};">${i+1}</td>
-            <td style="padding:10px 6px;font-weight:600;">${p.name}</td>
+          const rankColor=i===0?'#F59E0B':i===1?'#9CA3AF':i===2?'#B45309':'var(--text3)';
+          const rowBg=p.g===0?'background:var(--bg);opacity:.6;':'';
+          return`<tr style="border-bottom:1px solid var(--border);${rowBg}">
+            <td style="padding:10px 6px;text-align:center;font-weight:700;color:${p.g>0?rankColor:'var(--text3)'};">${p.g>0?i+1:'-'}</td>
+            <td style="padding:10px 10px;font-weight:600;">${p.name}</td>
             <td style="padding:10px 6px;text-align:center;color:var(--text2);">${p.g}</td>
             <td style="padding:10px 6px;text-align:center;font-weight:700;color:var(--court);">${p.w}</td>
-            <td style="padding:10px 6px;text-align:center;color:var(--text2);">${draws}</td>
-            <td style="padding:10px 6px;text-align:center;color:var(--red);">${p.l}</td>
-            <td style="padding:10px 6px;text-align:center;font-weight:700;color:var(--court);">${p.wr}%</td>
+            <td style="padding:10px 6px;text-align:center;color:var(--amber);">${p.d}</td>
+            <td style="padding:10px 6px;text-align:center;color:var(--text2);">${p.l}</td>
+            <td style="padding:10px 6px;text-align:center;font-weight:600;color:var(--text2);">${p.g>0?p.wr+'%':'-'}</td>
+            <td style="padding:10px 6px;text-align:center;font-weight:800;font-size:14px;color:${p.pts>0?'var(--red)':'var(--text3)'};">${p.pts}</td>
           </tr>`;
         }).join('')}
       </tbody>
-    </table>`
-    :`<div class="empty"><div class="empty-text">기록이 없습니다</div></div>`;
+    </table></div>`;
+  } else {
+    // 페어 랭킹
+    const pairs={};
+    ms.forEach(m=>{
+      const proc=(t1ids,t2ids,win)=>{
+        if(t1ids.filter(Boolean).length<2)return;
+        const key=[...t1ids].filter(Boolean).sort().join('|');
+        if(!pairs[key])pairs[key]={ids:t1ids.filter(Boolean),w:0,l:0,g:0,setDiff:0};
+        pairs[key].g++;
+        if(win)pairs[key].w++;else pairs[key].l++;
+        pairs[key].setDiff+=(m.score1||0)-(m.score2||0);
+      };
+      proc([m.team1_p1,m.team1_p2],[m.team2_p1,m.team2_p2],m.score1>m.score2);
+      proc([m.team2_p1,m.team2_p2],[m.team1_p1,m.team1_p2],m.score2>m.score1);
+    });
+    const pairRanked=Object.values(pairs).map(p=>({...p,pts:p.w*5+(p.g-p.w-p.l)*2+p.l*1,wr:Math.round(p.w/Math.max(1,p.w+p.l)*100)}))
+      .filter(p=>p.g>0).sort((a,b)=>b.pts-a.pts||b.setDiff-a.setDiff||b.g-a.g);
+
+    const pairPointBasis=`<div style="display:flex;gap:10px;padding:8px 14px 10px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);flex-wrap:wrap;"><span style="font-weight:700;color:var(--text3);">포인트 기준:</span><span>🏆 승 <b style="color:var(--court);">5점</b></span><span>🤝 무 <b style="color:var(--amber);">2점</b></span><span>❌ 패 <b style="color:var(--text2);">1점</b></span></div>`;
+    document.getElementById('rankList').innerHTML=pairRanked.length
+      ?pairPointBasis+`<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);background:var(--bg);">
+            <th style="padding:8px 6px;text-align:center;width:28px;">#</th>
+            <th style="padding:8px 10px;text-align:left;">페어</th>
+            <th style="padding:8px 6px;text-align:center;">경기</th>
+            <th style="padding:8px 6px;text-align:center;color:var(--court);">승</th>
+            <th style="padding:8px 6px;text-align:center;color:var(--amber);">무</th>
+            <th style="padding:8px 6px;text-align:center;color:var(--red);">패</th>
+            <th style="padding:8px 6px;text-align:center;">승률</th>
+            <th style="padding:8px 6px;text-align:center;color:var(--red);">POINT</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${pairRanked.map((p,i)=>{
+            const names=p.ids.map(id=>gP(id)?.name||'?').sort((a,b)=>a.localeCompare(b,'ko')).join(' + ');
+            const draws=p.g-p.w-p.l;
+            const decisive=p.w+p.l;
+            const wr=decisive>0?Math.round(p.w/decisive*100):0;
+            const pts=p.w*5+draws*2+p.l*1;
+            return`<tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:10px 6px;text-align:center;font-weight:700;color:${i===0?'#F59E0B':i===1?'#9CA3AF':i===2?'#B45309':'var(--text3)'};">${i+1}</td>
+              <td style="padding:10px 10px;font-weight:600;">${names}</td>
+              <td style="padding:10px 6px;text-align:center;color:var(--text2);">${p.g}</td>
+              <td style="padding:10px 6px;text-align:center;font-weight:700;color:var(--court);">${p.w}</td>
+              <td style="padding:10px 6px;text-align:center;color:var(--amber);">${draws}</td>
+              <td style="padding:10px 6px;text-align:center;color:var(--text2);">${p.l}</td>
+              <td style="padding:10px 6px;text-align:center;font-weight:600;color:var(--text2);">${wr}%</td>
+              <td style="padding:10px 6px;text-align:center;font-weight:800;font-size:14px;color:${pts>0?'var(--red)':'var(--text3)'};">${pts}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>`
+      :`<div class="empty"><div class="empty-text">기록이 없습니다</div></div>`;
+  }
 }
-function switchRP(p,el){curRP=p;document.querySelectorAll('#page-ranking .pb2').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderRanking();}
+
+// switchRP deprecated - using dropdowns now
 
 // ── MYPAGE ──
 async function renderMyPage(){
@@ -2165,28 +2326,30 @@ async function renderMyPage(){
   const ms=await fetchMatchesInRange(s,e);ld(false);
   const myMs=ms.filter(m=>[m.team1_p1,m.team1_p2,m.team2_p1,m.team2_p2].includes(CU.id));
   const st=calcSt(myMs,CU.id);
-  document.getElementById('myHero').innerHTML=`<div class="my-name">${CU.name}</div><div class="my-meta">${CU.gender==='M'?'남성':'여성'}</div><div class="my-sr"><div class="my-sb"><div class="my-sv">${st.w}</div><div class="my-sl">승</div></div><div class="my-sb"><div class="my-sv">${st.l}</div><div class="my-sl">패</div></div><div class="my-sb"><div class="my-sv">${st.g}</div><div class="my-sl">게임</div></div><div class="my-sb"><div class="my-sv">${st.wr}%</div><div class="my-sl">승률</div></div></div>`;
+  document.getElementById('myHero').innerHTML=`<div class="my-name">${CU.name}</div><div class="my-meta">${CU.gender==='M'?'남성':'여성'}</div><div class="my-sr"><div class="my-sb"><div class="my-sv">${st.w}</div><div class="my-sl">승</div></div><div class="my-sb"><div class="my-sv">${st.d}</div><div class="my-sl">무</div></div><div class="my-sb"><div class="my-sv">${st.l}</div><div class="my-sl">패</div></div><div class="my-sb"><div class="my-sv">${st.pts}</div><div class="my-sl">포인트</div></div></div>`;
   const allSt=members.filter(m=>m.active&&m.type==='regular').map(p=>({id:p.id,...calcSt(ms,p.id)})).filter(p=>p.g>0).sort((a,b)=>b.wr-a.wr);
   const myRank=allSt.findIndex(p=>p.id===CU.id)+1;
   const ps=calcPairs(myMs,CU.id);
   const best=[...ps].sort((a,b)=>b.wr-a.wr).slice(0,3);
   const worst=[...ps].sort((a,b)=>a.wr-b.wr).slice(0,3);
   const hist=myMs.slice().sort((a,b)=>(b.sessionDate||'').localeCompare(a.sessionDate||'')).slice(0,10);
-  const lbl={quarter:'분기',half:'반기',year:'연간',all:'전체'};
+  const lbl={quarter:getPeriodLabel('quarter'),half:getPeriodLabel('half'),year:getPeriodLabel('year'),all:'전체'};
   document.getElementById('myContent').innerHTML=`
     <div style="padding:0 20px 10px;">
       <div class="stat-row">
-        <div class="stat-box"><div class="sv g">${st.w}</div><div class="sl">${lbl[curMP]} 승</div></div>
-        <div class="stat-box"><div class="sv r">${st.l}</div><div class="sl">패</div></div>
-        <div class="stat-box"><div class="sv">${myRank||'-'}</div><div class="sl">현재 순위</div></div>
-        <div class="stat-box"><div class="sv g">${st.wr}</div><div class="sl">승률%</div></div>
+        <div class="stat-box"><div class="sv g">${st.w}</div><div class="sl">승</div></div>
+        <div class="stat-box"><div class="sv" style="color:var(--amber);">${st.d}</div><div class="sl">무</div></div>
+        <div class="stat-box"><div class="sv">${st.l}</div><div class="sl">패</div></div>
+        <div class="stat-box"><div class="sv" style="color:var(--red);font-size:20px;">${st.pts}</div><div class="sl">포인트</div></div>
+        <div class="stat-box"><div class="sv g">${st.g>0?st.wr+'%':'-'}</div><div class="sl">승률</div></div>
+        <div class="stat-box"><div class="sv">${myRank||'-'}</div><div class="sl">${lbl[curMP]} 순위</div></div>
       </div>
     </div>
     ${best.length?`<div class="card" style="margin:0 20px 10px;"><div class="card-header"><div class="card-title">🏆 최고의 페어</div></div>${best.map((p,i)=>{const pl=gP(p.id);return pl?`<div class="pair-item"><div class="pr">${['🥇','🥈','🥉'][i]}</div><div class="pi"><div class="pn">${pl.name}</div><div class="ps">${p.w}승 ${p.g-p.w}패 · ${p.g}게임</div></div><div class="prate good">${p.wr}%</div></div>`:''}).join('')}</div>`:''}
     ${worst.length?`<div class="card" style="margin:0 20px 10px;"><div class="card-header"><div class="card-title">😅 최악의 페어</div></div>${worst.map((p,i)=>{const pl=gP(p.id);return pl?`<div class="pair-item"><div class="pr">${['😭','😢','😥'][i]}</div><div class="pi"><div class="pn">${pl.name}</div><div class="ps">${p.w}승 ${p.g-p.w}패 · ${p.g}게임</div></div><div class="prate bad">${p.wr}%</div></div>`:''}).join('')}</div>`:''}
-    ${hist.length?`<div class="card" style="margin:0 20px 10px;"><div class="card-header"><div class="card-title">최근 게임 이력</div></div>${hist.map(m=>{const i1=[m.team1_p1,m.team1_p2].includes(CU.id);const ms2=i1?m.score1:m.score2;const os=i1?m.score2:m.score1;const res=ms2>os?'win':ms2<os?'lose':'draw';const lb={win:'WIN',lose:'LOSE',draw:'DRAW'};const t1=[m.team1_p1,m.team1_p2].filter(Boolean).map(id=>gP(id)?.name||'?');const t2=[m.team2_p1,m.team2_p2].filter(Boolean).map(id=>gP(id)?.name||'?');return`<div class="li" style="cursor:default;"><div style="flex:1;"><div style="font-size:12px;color:var(--text2);">${fmtD(m.sessionDate)} R${m.round}</div><div style="font-size:13px;font-weight:600;margin-top:2px;">${t1.join('+')} vs ${t2.join('+')}</div></div><div style="text-align:right;"><span class="badge badge-${res}">${lb[res]}</span><div style="font-size:14px;font-weight:700;margin-top:3px;">${ms2}:${os}</div></div></div>`;}).join('')}</div>`:''}`;
+    ${hist.length?`<div class="card" style="margin:0 20px 10px;"><div class="card-header"><div class="card-title">최근 게임 이력</div></div>${hist.map(m=>{const i1=[m.team1_p1,m.team1_p2].includes(CU.id);const ms2=i1?m.score1:m.score2;const os=i1?m.score2:m.score1;const res=ms2>os?'win':ms2<os?'lose':'draw';const lb={win:'승',lose:'패',draw:'무'};const t1=[m.team1_p1,m.team1_p2].filter(Boolean).map(id=>gP(id)?.name||'?');const t2=[m.team2_p1,m.team2_p2].filter(Boolean).map(id=>gP(id)?.name||'?');return`<div class="li" style="cursor:default;"><div style="flex:1;"><div style="font-size:12px;color:var(--text2);">${fmtD(m.sessionDate)} R${m.round}</div><div style="font-size:13px;font-weight:600;margin-top:2px;">${t1.join('+')} vs ${t2.join('+')}</div></div><div style="text-align:right;"><span class="badge badge-${res}">${lb[res]}</span><div style="font-size:14px;font-weight:700;margin-top:3px;">${ms2}:${os}</div></div></div>`;}).join('')}</div>`:''}`;
 }
-function switchMP(p,el){curMP=p;document.querySelectorAll('#page-mypage .pb2').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderMyPage();}
+function switchMP(p,el){curMP=p;document.querySelectorAll('#page-mypage .pb2').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderMypageContent();}
 
 // ── SETUP LIST (설정 페이지) ──
 function renderSetupListPage(){
