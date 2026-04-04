@@ -233,8 +233,14 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);co
   </div>
 
   <div class="bottom-nav" id="memberNav" style="display:none;">
-    <button class="nav-btn active" onclick="sp('home')" id="nav-home">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>홈
+    <button class="nav-btn active" onclick="sp('schedule')" id="nav-schedule-m">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>대진
+    </button>
+    <button class="nav-btn" onclick="sp('mgmt-m')" id="nav-mgmt-m">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>회원
+    </button>
+    <button class="nav-btn" onclick="sp('records')" id="nav-records-m">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>경기기록
     </button>
     <button class="nav-btn" onclick="sp('ranking')" id="nav-ranking-m">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 21H2V9h5.5v12zm7.25-18h-5.5v18h5.5V3zM22 11h-5.5v10H22V11z"/></svg>랭킹
@@ -398,6 +404,15 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);co
         <button class="btn btn-danger btn-sm" id="sessDetailDeleteBtn" onclick="deleteSessFromDetail()" style="flex-shrink:0;">삭제</button>
       </div>
     </div>
+  </div>
+
+  <!-- 회원용 회원 목록 (NTRP 숨김) -->
+  <div class="page" id="page-mgmt-m">
+    <div style="padding:18px 20px 14px;background:var(--white);border-bottom:1px solid var(--border);">
+      <div style="font-size:18px;font-weight:700;">회원</div>
+    </div>
+    <div style="padding:14px 20px 10px;font-size:13px;font-weight:600;color:var(--text2);">정회원 <span id="memberListCount"></span></div>
+    <div class="card" style="margin:0 20px;"><div id="memberListForUser"></div></div>
   </div>
 
   <!-- SETTINGS -->
@@ -667,7 +682,7 @@ function enterApp(){
   document.getElementById('saveSchedBtn').style.display=CU.is_admin?'flex':'none';
   document.getElementById('manualGenBtn').style.display=CU.is_admin?'flex':'none';
   if(CU.is_admin){sp('schedule');renderSessSel();renderSlots();renderCourtList();renderMgmt();}
-  else{sp('home');renderHome();}
+  else{renderSessSel();sp('schedule');}
 }
 
 // ── NAV ──
@@ -676,9 +691,9 @@ async function sp(name){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   const pg=document.getElementById('page-'+name);if(pg)pg.classList.add('active');
   ['nav-'+name,'nav-'+name+'-m'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('active');});
-  if(name==='schedule'&&curSess){
-    // 대진 탭으로 돌아오면 항상 DB에서 재로드
-    await loadSess();
+  if(name==='schedule'){
+    renderSessSel();
+    if(curSess)await loadSess();
   }
   if(name==='ranking')renderRanking();
   if(name==='mypage')renderMyPage();
@@ -686,6 +701,7 @@ async function sp(name){
   if(name==='settings'){renderSetupListPage();renderSlots();renderCourtList();}
   if(name==='records')renderRecords();
   if(name==='home')renderHome();
+  if(name==='mgmt-m')renderMemberListForUser();
 }
 function switchMTab(t,el){
   document.querySelectorAll('#page-mgmt .tab-item').forEach(b=>b.classList.remove('active'));el.classList.add('active');
@@ -1518,26 +1534,23 @@ function renderRounds(){
 
   wrap.innerHTML=statsHtml+roundsHtml;
   // 터치+마우스 드래그 초기화
-  if(CU?.is_admin){
-    document.querySelectorAll('.pc,.rest-card').forEach(el=>initDrag(el));
-  }
+  document.querySelectorAll('.pc,.rest-card').forEach(el=>initDrag(el));
 }
 
 function renderMC(m){
   const cname=getCourtName(m.court_id,m.court);
   const pCard=(field,memberId)=>{
     if(!memberId){
-      return CU?.is_admin
-        ?`<div class="empty-slot" id="es-${m.id}-${field}" data-mid="${m.id}" data-field="${field}"
-            onclick="openSlotPick('${m.id}','${field}',${m.round})">빈 자리</div>`
-        :`<div class="empty-slot">빈 자리</div>`;
+      // 모든 유저가 빈 슬롯 탭해서 선수 배정 가능
+      return`<div class="empty-slot" id="es-${m.id}-${field}" data-mid="${m.id}" data-field="${field}"
+          onclick="openSlotPick('${m.id}','${field}',${m.round})">빈 자리</div>`;
     }
     const p=gP(memberId);const col=getSlotColor(memberId);
     const isGuest=p?.type==='guest';
     return`<div class="pc" id="pc-${m.id}-${field}"
       data-mid="${m.id}" data-field="${field}" data-member="${memberId}"
       style="${isGuest?'border-color:#8B5CF6;background:#F5F3FF;':''}"
-      ${CU?.is_admin?`onclick="openPlayerCardMenu('${m.id}','${field}','${memberId}',${m.round})"`:''}>
+      onclick="openPlayerCardMenu('${m.id}','${field}','${memberId}',${m.round})">
       <div class="pdot" style="background:${col};"></div>
       <span class="pname" style="${isGuest?'color:#7C3AED;':''}">${p?p.name:'?'}</span>
       ${isGuest?'<span style="font-size:9px;font-weight:700;color:#7C3AED;background:#EDE9FE;padding:1px 4px;border-radius:3px;">G</span>':''}
@@ -1586,14 +1599,12 @@ function initDrag(el){
 }
 
 function dragMouseDown(e){
-  if(!CU?.is_admin)return;
   // onclick과 구분: mousedown만 드래그 준비, 실제 이동 후 활성화
   startDrag(e.currentTarget,e.clientX,e.clientY);
   document.addEventListener('mousemove',dragMouseMove);
   document.addEventListener('mouseup',dragMouseUp);
 }
 function dragTouchStart(e){
-  if(!CU?.is_admin)return;
   const t=e.touches[0];
   startDrag(e.currentTarget,t.clientX,t.clientY);
   document.addEventListener('touchmove',dragTouchMove,{passive:false});
@@ -1761,11 +1772,11 @@ function openPlayerCardMenu(matchId,field,memberId,roundNum){
   ).sort((a,b)=>(gP(a)?.name||'').localeCompare(gP(b)?.name||'','ko'));
 
   document.getElementById('moPlayerCardBody').innerHTML=`
-    <div style="margin-bottom:12px;">
+    ${CU?.is_admin?`<div style="margin-bottom:12px;">
       <button class="btn btn-danger btn-block" onclick="removePlayerFromSlot('${matchId}','${field}');cm('moPlayerCard');">
         ✕ ${p.name} 제거 (빈 슬롯으로)
       </button>
-    </div>
+    </div>`:''}
     ${replaceable.length?`
     <div class="form-label" style="margin-bottom:8px;">다른 선수로 교체</div>
     <div style="display:flex;flex-direction:column;gap:6px;">
@@ -1901,6 +1912,23 @@ async function resetScore(mid){
 }
 
 // ── MEMBERS ──
+function renderMemberListForUser(){
+  const reg=members.filter(m=>m.type==='regular'&&m.active).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  document.getElementById('memberListCount').textContent=reg.length+'명';
+  document.getElementById('memberListForUser').innerHTML=reg.length
+    ?reg.map(p=>`<div class="li" style="cursor:default;">
+        <div class="av av-${p.gender}">${p.name[0]}</div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:15px;font-weight:600;">${p.name}</span>
+            ${p.is_admin?'<span class="badge" style="background:#FEF2F2;color:#DC2626;">관리자</span>':''}
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${p.gender==='M'?'남성':'여성'}</div>
+        </div>
+      </div>`).join('')
+    :`<div class="empty"><div class="empty-text">등록된 회원이 없습니다</div></div>`;
+}
+
 function updateGuestSessFilter(){
   // 연도 변경 시 세션 목록 갱신 후 renderMgmt
   renderMgmt();
@@ -1946,8 +1974,6 @@ async function renderMgmt(){
   document.getElementById('gstCnt').textContent=`${gst.length}${filterSessId?'/'+allGst.length:''}`;
   document.getElementById('regList').innerHTML=renderMItems(reg);
   document.getElementById('gstList').innerHTML=renderMItems(gst);
-  await loadMemberRankCache();
-  document.getElementById('regList').innerHTML=renderMItems(reg);
 }
 function getMemberRanks(pid){
   // 분기/반기/연간 랭킹 계산 (이미 fetchMatchesInRange는 async라 동기로 미리 계산된 값 사용)
@@ -1969,8 +1995,10 @@ async function loadMemberRankCache(){
 
   for(const[key,range] of Object.entries(ranges)){
     const ms=await fetchMatchesInRange(range.s,range.e);
+    // 랭킹 페이지와 동일한 기준: 포인트(pts) → 세트득실 → 경기수
     const ranked=allMembers.map(p=>({id:p.id,...calcSt(ms,p.id)}))
-      .filter(p=>p.g>0).sort((a,b)=>b.wr-a.wr||b.g-a.g);
+      .filter(p=>p.g>0)
+      .sort((a,b)=>b.pts-a.pts||b.setDiff-a.setDiff||b.g-a.g);
     ranked.forEach((p,i)=>{
       if(!memberRankCache[p.id])memberRankCache[p.id]={q:'-',h:'-',y:'-'};
       if(key==='q')memberRankCache[p.id].q=i+1;
@@ -1983,7 +2011,6 @@ async function loadMemberRankCache(){
 function renderMItems(list){
   if(!list.length)return`<div class="empty"><div class="empty-text">등록된 회원이 없습니다</div></div>`;
   return list.map(p=>{
-    const ranks=getMemberRanks(p.id);
     const ntrp=p.level||'-';
     return`<div class="li" style="flex-direction:column;align-items:flex-start;padding:14px 18px;gap:8px;">
       <div style="display:flex;align-items:center;gap:10px;width:100%;">
@@ -1991,7 +2018,7 @@ function renderMItems(list){
         <div style="flex:1;">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span style="font-size:15px;font-weight:600;">${p.name}</span>
-            <span style="font-size:12px;font-weight:700;color:var(--court);background:var(--court-bg);padding:2px 7px;border-radius:5px;">NTRP ${ntrp}</span>
+            ${CU?.is_admin?`<span style="font-size:12px;font-weight:700;color:var(--court);background:var(--court-bg);padding:2px 7px;border-radius:5px;">NTRP ${ntrp}</span>`:''}
             ${p.is_admin?'<span class="badge" style="background:#FEF2F2;color:#DC2626;">관리자</span>':''}
             ${p.type==='guest'?'<span class="badge" style="background:#F5F3FF;color:#7C3AED;">게스트</span>':''}
           </div>
@@ -2002,20 +2029,7 @@ function renderMItems(list){
           <button class="btn btn-danger btn-sm" onclick="delM('${p.id}')">삭제</button>
         </div>
       </div>
-      ${p.type==='regular'?`<div style="display:flex;gap:8px;width:100%;padding-left:50px;">
-        <div style="flex:1;text-align:center;background:var(--bg);border-radius:8px;padding:5px 4px;">
-          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">분기</div>
-          <div style="font-size:14px;font-weight:700;color:${ranks.q<=3?'var(--amber)':'var(--text)'};">${ranks.q<10?ranks.q+'위':ranks.q==='-'?'-':ranks.q+'위'}</div>
-        </div>
-        <div style="flex:1;text-align:center;background:var(--bg);border-radius:8px;padding:5px 4px;">
-          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">반기</div>
-          <div style="font-size:14px;font-weight:700;color:${ranks.h<=3?'var(--amber)':'var(--text)'};">${ranks.h==='-'?'-':ranks.h+'위'}</div>
-        </div>
-        <div style="flex:1;text-align:center;background:var(--bg);border-radius:8px;padding:5px 4px;">
-          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">연간</div>
-          <div style="font-size:14px;font-weight:700;color:${ranks.y<=3?'var(--amber)':'var(--text)'};">${ranks.y==='-'?'-':ranks.y+'위'}</div>
-        </div>
-      </div>`:''}
+
     </div>`;
   }).join('');
 }
