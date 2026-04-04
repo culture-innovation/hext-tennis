@@ -346,16 +346,16 @@ body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);co
     <div style="padding:16px 20px 10px;">
       <div style="font-size:18px;font-weight:700;margin-bottom:12px;">랭킹</div>
       <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <select class="form-select" id="rankTypeSel" onchange="renderRanking()" style="flex:1;font-weight:600;">
+          <option value="individual">개인랭킹</option>
+          <option value="pair">페어랭킹</option>
+        </select>
         <select class="form-select" id="rankYearSel" onchange="renderRanking()" style="flex:1;font-weight:600;"></select>
         <select class="form-select" id="rankPeriodSel" onchange="renderRanking()" style="flex:1;font-weight:600;">
           <option value="quarter">분기</option>
           <option value="half">반기</option>
           <option value="year" selected>연간</option>
           <option value="all">전체</option>
-        </select>
-        <select class="form-select" id="rankTypeSel" onchange="renderRanking()" style="flex:1;font-weight:600;">
-          <option value="individual">개인랭킹</option>
-          <option value="pair">페어랭킹</option>
         </select>
       </div>
       <div class="stat-row" id="rankSum" style="margin-bottom:10px;"></div>
@@ -1998,7 +1998,7 @@ async function loadMemberRankCache(){
     // 랭킹 페이지와 동일한 기준: 포인트(pts) → 세트득실 → 경기수
     const ranked=allMembers.map(p=>({id:p.id,...calcSt(ms,p.id)}))
       .filter(p=>p.g>0)
-      .sort((a,b)=>b.pts-a.pts||b.setDiff-a.setDiff||b.g-a.g);
+      .sort((a,b)=>b.pts-a.pts||b.wr-a.wr||b.setDiff-a.setDiff||b.g-a.g);
     ranked.forEach((p,i)=>{
       if(!memberRankCache[p.id])memberRankCache[p.id]={q:'-',h:'-',y:'-'};
       if(key==='q')memberRankCache[p.id].q=i+1;
@@ -2175,9 +2175,8 @@ function calcSt(matches,pid){
       else d++;
     }
   });
-  // 승률: 무는 분모 제외 (승/결정경기)
-  const decisive=w+l;
-  const wr=decisive>0?Math.round(w/decisive*100):0;
+  // 승률: 무는 분모 산입, 분자에는 미포함 (승/전체경기)
+  const wr=g>0?Math.round(w/g*100):0;
   // 포인트: 승5 무2 패1
   const pts=w*5+d*2+l*1;
   return{w,l,d,g,wr,setDiff,pts};
@@ -2234,14 +2233,14 @@ async function renderRanking(){
     const ranked=members.filter(m=>m.active&&m.type==='regular').map(p=>{
       const st=calcSt(ms,p.id);
       return{...p,...st};
-    }).sort((a,b)=>b.pts-a.pts||b.setDiff-a.setDiff||b.g-a.g);
+    }).sort((a,b)=>b.pts-a.pts||b.wr-a.wr||b.setDiff-a.setDiff||b.g-a.g);
 
     const pointBasis=`<div style="display:flex;gap:10px;padding:8px 14px 10px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);flex-wrap:wrap;">
       <span style="font-weight:700;color:var(--text3);">포인트 기준:</span>
       <span>🏆 승 <b style="color:var(--court);">5점</b></span>
       <span>🤝 무 <b style="color:var(--amber);">2점</b></span>
       <span>❌ 패 <b style="color:var(--text2);">1점</b></span>
-      <span style="color:var(--text3);">· 동점 시 세트득실 차이</span>
+      <span style="color:var(--text3);">· 동점 시 승률 → 세트득실</span>
     </div>`;
 
     document.getElementById('rankList').innerHTML=`${pointBasis}<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:320px;">
@@ -2253,6 +2252,7 @@ async function renderRanking(){
           <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--court);">승</th>
           <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--amber);">무</th>
           <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--text2);">패</th>
+          <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--text2);">득실</th>
           <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--text2);">승률</th>
           <th style="padding:8px 6px;text-align:center;font-weight:700;color:var(--red);">POINT</th>
         </tr>
@@ -2268,6 +2268,7 @@ async function renderRanking(){
             <td style="padding:10px 6px;text-align:center;font-weight:700;color:var(--court);">${p.w}</td>
             <td style="padding:10px 6px;text-align:center;color:var(--amber);">${p.d}</td>
             <td style="padding:10px 6px;text-align:center;color:var(--text2);">${p.l}</td>
+            <td style="padding:10px 6px;text-align:center;font-weight:600;color:${p.setDiff>0?'var(--court)':p.setDiff<0?'var(--red)':'var(--text2)'};">${p.g>0?(p.setDiff>0?'+':'')+p.setDiff:'-'}</td>
             <td style="padding:10px 6px;text-align:center;font-weight:600;color:var(--text2);">${p.g>0?p.wr+'%':'-'}</td>
             <td style="padding:10px 6px;text-align:center;font-weight:800;font-size:14px;color:${p.pts>0?'var(--red)':'var(--text3)'};">${p.pts}</td>
           </tr>`;
@@ -2279,9 +2280,12 @@ async function renderRanking(){
     const pairs={};
     ms.forEach(m=>{
       const proc=(t1ids,t2ids,win)=>{
-        if(t1ids.filter(Boolean).length<2)return;
-        const key=[...t1ids].filter(Boolean).sort().join('|');
-        if(!pairs[key])pairs[key]={ids:t1ids.filter(Boolean),w:0,l:0,g:0,setDiff:0};
+        const validIds=t1ids.filter(Boolean);
+        if(validIds.length<2)return;
+        // 정회원 조합만 (게스트 제외)
+        if(validIds.some(id=>{const m=gP(id);return!m||m.type!=='regular';}))return;
+        const key=[...validIds].sort().join('|');
+        if(!pairs[key])pairs[key]={ids:validIds,w:0,l:0,g:0,setDiff:0};
         pairs[key].g++;
         if(win)pairs[key].w++;else pairs[key].l++;
         pairs[key].setDiff+=(m.score1||0)-(m.score2||0);
@@ -2309,7 +2313,7 @@ async function renderRanking(){
         </thead>
         <tbody>
           ${pairRanked.map((p,i)=>{
-            const names=p.ids.map(id=>gP(id)?.name||'?').sort((a,b)=>a.localeCompare(b,'ko')).join(' + ');
+            const names=p.ids.map(id=>gP(id)?.name||'?').sort((a,b)=>a.localeCompare(b,'ko')).join(' × ');
             const draws=p.g-p.w-p.l;
             const decisive=p.w+p.l;
             const wr=decisive>0?Math.round(p.w/decisive*100):0;
